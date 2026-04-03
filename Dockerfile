@@ -1,29 +1,34 @@
-# ── Stage 1: Base Image (PHP + Extensions + Node) ─────────────────────────────
+# ── Stage 1: Runtime Base ──────────────────────────────────────────────────────
 FROM php:8.3-fpm-alpine AS base
 
 # Install System Dependencies, Node.js, and Build Tools
 RUN apk add --no-cache \
     libpng-dev libzip-dev oniguruma-dev libxml2-dev icu-dev redis nodejs npm \
     git unzip zip curl libwebp-dev libjpeg-turbo-dev freetype-dev \
-    librdkafka-dev build-base autoconf bash python3
+    librdkafka-dev build-base autoconf bash python3 gmp-dev
 
 # Install PHP Extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip intl opcache
+    && docker-php-ext-install \
+    pdo_mysql mbstring exif pcntl bcmath gd zip intl opcache sockets gmp
 
 # Install Kafka support
 RUN pecl install rdkafka && docker-php-ext-enable rdkafka
 
 WORKDIR /var/www
 
-# ── Stage 2: Build App (Composer & Node) ──────────────────────────────────────
+# Fallback Environment for Build
+ENV APP_ENV=production
+ENV APP_KEY=base64:7B5qX2c6v+W0S3d5m8L1u9R4Y7J0I2K4p1O3E5A6B7N=
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+# ── Stage 2: Dependencies & Asset Build ──────────────────────────────────────
 FROM base AS build
 
-# PHP Dependencies
+# PHP Dependencies (Using -vvv to see the real error if it fails)
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 COPY ./composer.json ./composer.lock /var/www/
-# Use --ignore-platform-reqs to bypass extension check during composer install
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs -vvv
 
 # Node.js Dependencies & Inertia Build
 COPY ./package.json ./package-lock.json* /var/www/
