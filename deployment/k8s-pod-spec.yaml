@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracking-worker-pro
+  namespace: tracking
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: tracking-worker
+      pool: pro
+  template:
+    metadata:
+      labels:
+        app: tracking-worker
+        pool: pro
+    spec:
+      containers:
+      - name: worker
+        image: sgtm-tracking-proxy:latest
+        command: ["php", "artisan", "queue:work", "--queue=tracking:pro", "--tries=3"]
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1000m"
+            memory: "2Gi"
+        envFrom:
+        - secretRef:
+            name: tracking-secrets
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracking-worker-free
+  namespace: tracking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tracking-worker
+      pool: free
+  template:
+    metadata:
+      labels:
+        app: tracking-worker
+        pool: free
+    spec:
+      containers:
+      - name: worker
+        image: sgtm-tracking-proxy:latest
+        command: ["php", "artisan", "queue:work", "--queue=tracking:free", "--tries=1"]
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+          limits:
+            cpu: "500m"
+            memory: "1Gi"
+        envFrom:
+        - secretRef:
+            name: tracking-secrets

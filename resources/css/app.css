@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.jsx';
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-inter: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    /* Shopify Admin Palette */
+    --color-background: #f1f2f4;
+    --color-foreground: #1a1a1a;
+    
+    --color-card: #ffffff;
+    --color-card-foreground: #1a1a1a;
+    
+    --color-primary: #1a1a1a; /* Modern Shopify Black */
+    --color-primary-foreground: #ffffff;
+    
+    --color-muted: #f6f6f7;
+    --color-muted-foreground: #616161;
+    
+    --color-accent: #008060; /* Shopify Green */
+    --color-accent-foreground: #ffffff;
+    
+    --color-border: #d2d5d9;
+    --color-input: #ffffff;
+    --color-ring: #008060;
+
+    /* Sidebar Variables — Clean white/grey Shopify style */
+    --color-sidebar: #ffffff;
+    --color-sidebar-border: #e3e3e3;
+    --color-sidebar-primary: #1a1a1a;
+    --color-sidebar-primary-foreground: #ffffff;
+    --color-sidebar-foreground: #4a4a4a;
+    --color-sidebar-accent: #f1f2f4;
+    --color-sidebar-accent-foreground: #1a1a1a;
+}
+
+@utility shopify-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+@utility shopify-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+@utility primary-button {
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+  &:hover {
+    background: #303030;
+  }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Ensure form elements use the foreground color */
+input, select, textarea {
+    color: var(--color-foreground);
+}
+
+::placeholder {
+    color: #94a3b8; /* Slate 400 */
+    opacity: 1; /* Firefox */
+}
+
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-background); }
+::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-muted-foreground); }
+
+.scrollbar-thin::-webkit-scrollbar { width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }

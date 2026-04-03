@@ -1,0 +1,29 @@
+# Learn more: https://shopify.dev/docs/apps/tools/cli/configuration
+
+name = "PixelMaster sGTM"
+client_id = "${SHOPIFY_API_KEY}"
+application_url = "${SHOPIFY_APP_URL}"
+embedded = true
+
+[access_scopes]
+scopes = "read_products,read_orders,write_script_tags,read_checkouts,read_customer_events"
+
+[auth]
+redirect_urls = [
+  "${SHOPIFY_APP_URL}/api/tracking/shopify/callback"
+]
+
+[webhooks]
+api_version = "2024-01"
+
+  [[webhooks.subscriptions]]
+  topics = ["orders/create", "orders/paid", "refunds/create", "products/create", "products/update", "products/delete"]
+  uri = "${SHOPIFY_APP_URL}/api/tracking/shopify/webhooks"
+
+  [webhooks.privacy_compliance]
+  customer_deletion_url = "${SHOPIFY_APP_URL}/api/tracking/shopify/privacy"
+  customer_data_request_url = "${SHOPIFY_APP_URL}/api/tracking/shopify/privacy"
+  shop_deletion_url = "${SHOPIFY_APP_URL}/api/tracking/shopify/privacy"
+
+[pos]
+embedded = false

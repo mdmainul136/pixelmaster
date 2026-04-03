@@ -1,0 +1,7 @@
+﻿Tenancy initialized for growth-test.
+Connection 'mysql' -> Host: 127.0.0.1, Port: 3306, User: root, DB: tenant_master -> ior_carts exist: YES
+Columns in ior_carts (mysql): id, tenant_id, user_id, session_id, currency, total_items, total_base_price_usd, total_base_price_bdt, total_customs_fee_bdt, total_shipping_cost_bdt, total_profit_margin_bdt, final_total_bdt, advance_amount_required, status, created_at, updated_at
+Connection 'tenant' -> Host: 127.0.0.1, Port: 3306, User: root, DB: tenant_growth-test -> ior_carts exist: YES
+Columns in ior_carts (tenant): id, tenant_id, user_id, session_id, currency, total_items, total_base_price_usd, total_base_price_bdt, total_customs_fee_bdt, total_shipping_cost_bdt, total_profit_margin_bdt, final_total_bdt, advance_amount_required, status, recovery_token, notified_at, created_at, updated_at
+Connection 'tenant_dynamic' -> Host: 127.0.0.1, Port: 3306, User: root, DB: tenant_master -> ior_carts exist: YES
+Columns in ior_carts (tenant_dynamic): id, tenant_id, user_id, session_id, currency, total_items, total_base_price_usd, total_base_price_bdt, total_customs_fee_bdt, total_shipping_cost_bdt, total_profit_margin_bdt, final_total_bdt, advance_amount_required, status, created_at, updated_at

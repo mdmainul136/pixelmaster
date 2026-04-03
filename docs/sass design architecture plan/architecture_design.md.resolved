@@ -1,0 +1,92 @@
+# Architecture Design: Multi-Tenant Database Strategy
+
+This document explains the "Database-per-Tenant" strategy used in the platform and identifies areas for future optimization.
+
+## 1. The Multi-DB Layered Design
+
+The system is split into two distinct tiers to ensure maximum security and isolation.
+
+### Tier 1: Master Database (The Landlord)
+- **Primary Connection**: `mysql`
+- **Purpose**: Global management and routing.
+- **Key Data**:
+  - [tenants](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/RegionStatsController.php#71-108): Primary record with database credentials, status, and IDs.
+  - `tenant_domains`: Mappings for subdomains and custom domains.
+  - `database_plans`: Pricing and resource limits (e.g., storage quotas).
+  - `tenant_modules`: Which features (POS, Finance) are active for which tenant.
+
+### Tier 2: Tenant Databases (The Isolated Silos)
+- **Primary Connection**: `tenant_dynamic` (Swapped per-request).
+- **Purpose**: Application data storage (Orders, Products, Ledgers, Users).
+- **Isolation Scope**:
+  - **Schema Isolation**: Each tenant has their own database (e.g., `tenant_rajib`, `tenant_acme`).
+  - **Credential Isolation**: Each tenant has a unique MySQL user with limited `GRANT` permissions to their specific DB only.
+  - **Physical Isolation**: Tenants can reside on different RDS/MySQL instances globally based on their `db_region`.
+
+---
+
+## 2. How Per-Tenant Isolation Works
+
+### Identification Phase
+The [IdentifyTenant](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Middleware/IdentifyTenant.php#13-196) middleware identifies the client via:
+1. **API Key**: Highest priority for server-to-server or headless requests.
+2. **X-Tenant-ID Header**: For internal tools or manual debugging.
+3. **DNS/Hostname**: Subdomains (`acme.platform.com`) or verified custom domains.
+
+### Execution Phase
+Once identified, the [DatabaseManager](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/DatabaseManager.php#9-314) executes the "Dynamic Switch":
+1. Fetches credentials from the [tenants](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/RegionStatsController.php#71-108) table in the Master DB.
+2. Decrypts `db_password_encrypted`.
+3. Injects values into `Config::set('database.connections.tenant_dynamic', ...)`.
+4. Executes `DB::purge('tenant_dynamic')` followed by `DB::reconnect('tenant_dynamic')`.
+5. Sets `tenant_dynamic` as the default connection for the remainder of the request.
+
+---
+
+## 3. Monitoring & Cross-DB Analytics
+
+Since tenant data is physically isolated, the Master DB uses a **SNAPSHOT** strategy for reporting and monitoring.
+
+### Telemetry Pipeline
+1. **Collector**: A background Artisan command `tenant:collect-db-stats` runs periodically.
+2. **Aggregator**: It queries each tenant's `INFORMATION_SCHEMA.TABLES` to calculate:
+   - **Database Size**: `SUM(DATA_LENGTH + INDEX_LENGTH)` converted to MB/GB.
+   - **Row Counts**: Aggregated from all tables (e.g., total products, orders).
+   - **Performance**: Checks slow query counts and write operation frequency.
+3. **Storage**: These metrics are saved in the `tenant_database_stats` table in the **Master DB**.
+
+### Cross-DB Authentication (Admin Access)
+While users are isolated to their own DB, Platform Admins can access tenant data via **Dynamic Masquerading**:
+- The [DatabaseManager](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/DatabaseManager.php#9-314) uses the tenant's isolated credentials stored in the Master DB to "Impersonate" the connection at runtime.
+
+---
+
+## 4. Current Strengths vs. Areas for Improvement
+
+| Feature | Current Implementation | Proposed Improvement |
+| :--- | :--- | :--- |
+| **Isolation** | Strong physical separation. | **Database Proxy**: Use a tool like Vitess or ProxySQL to manage the 1,000s of connections efficiently. |
+| **Migrations** | Synchronous/Artisan based. | **Asynchronous Migration Queue**: Scale deployments by running migrations in background workers. |
+| **Regions** | Host/Port based routing. | **Geo-Routing Proxies**: Use a global load balancer to route traffic to the nearest app node *and* DB node. |
+| **Reporting** | Looping (Slow). | **Central Analytics DB**: Pipe critical data (Sales/Tax) to a Snowflake/BigQuery instance for global analytics. |
+| **Security** | Encrypted DB Passwords. | **HashiCorp Vault**: Move secret management out of the DB into a dedicated secrets engine. |
+
+## 4. Visual Workflow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Middleware as IdentifyTenant
+    participant MasterDB as Master Database
+    participant DBManager as DatabaseManager
+    participant TenantDB as Tenant Database
+
+    User->>Middleware: GET /api/finance/accounts (Host: acme.com)
+    Middleware->>MasterDB: Find Tenant by domain 'acme.com'
+    MasterDB-->>Middleware: Tenant: {id: 7, db: tenant_acme, region: EU}
+    Middleware->>DBManager: switchToTenantDatabase('acme')
+    DBManager->>DBManager: Ingest EU-Host, Credentials & Reconnect
+    DBManager-->>Middleware: Connection 'tenant_dynamic' Ready
+    Middleware->>TenantDB: Query accounts...
+    TenantDB-->>User: JSON Response
+```

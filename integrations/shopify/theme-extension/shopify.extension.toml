@@ -1,0 +1,59 @@
+api_version = "2024-01"
+
+[[extensions]]
+name = "PixelMaster Tracking"
+handle = "pixelmaster-tracking"
+type = "theme"
+
+  [extensions.settings]
+    [[extensions.settings.fields]]
+    key = "transport_url"
+    type = "url"
+    name = "Transport URL"
+    description = "Your PixelMaster sGTM tracking domain"
+
+    [[extensions.settings.fields]]
+    key = "measurement_id"
+    type = "single_line_text_field"
+    name = "GA4 Measurement ID"
+    description = "e.g. G-XXXXXXXXXX"
+
+    [[extensions.settings.fields]]
+    key = "container_id"
+    type = "single_line_text_field"
+    name = "GTM Container ID"
+    description = "e.g. GTM-XXXXXXX"
+
+    [[extensions.settings.fields]]
+    key = "meta_pixel_id"
+    type = "single_line_text_field"
+    name = "Meta Pixel ID"
+    description = "Facebook/Instagram Pixel (numeric)"
+
+    [[extensions.settings.fields]]
+    key = "tiktok_pixel_id"
+    type = "single_line_text_field"
+    name = "TikTok Pixel ID"
+    description = "e.g. CXXXXXXXXXXXXXXXXX"
+
+    [[extensions.settings.fields]]
+    key = "enable_consent_mode"
+    type = "boolean"
+    name = "Enable Consent Mode v2"
+    description = "Geo-aware consent: opt-in for GDPR regions, opt-out for CCPA"
+
+    [[extensions.settings.fields]]
+    key = "enable_consent_banner"
+    type = "boolean"
+    name = "Show Consent Banner"
+    description = "Built-in cookie consent banner (auto-adapts by region)"
+
+  [[extensions.blocks]]
+  name = "PixelMaster Tracking"
+  target = "head"
+  template = "blocks/tracking.liquid"
+
+  [[extensions.blocks]]
+  name = "PixelMaster Checkout"
+  target = "purchase.thank-you.block.render"
+  template = "blocks/checkout.liquid"

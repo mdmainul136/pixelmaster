@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  shared-sidecar:
+    image: sgtm-powerups:latest
+    container_name: shared-sgtm-sidecar
+    restart: always
+    ports:
+      - "8100:8081"
+    environment:
+      - NODE_ENV=production
+      - PORT=8081
+      - CONTAINER_ID=shared-cluster
+      - API_SECRET=${API_SECRET:-pixelmasters_secret}
+      - POWERUPS_URL=${POWERUPS_URL:-https://app.pixelmasters.io/api/tracking}
+      - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+      - CLICKHOUSE_DB=sgtm_tracking
+      - INGESTION_MODE=direct
+      # Mapping file is essential for multi-tenant resolution
+      - MAPPINGS_PATH=/etc/sgtm/mappings.json
+    volumes:
+      # Mount the mappings directory so Laravel can update it dynamically
+      - /etc/sgtm:/etc/sgtm:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    name: tracking_network
+    external: true

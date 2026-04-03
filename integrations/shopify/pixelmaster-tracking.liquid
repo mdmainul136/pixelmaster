@@ -1,0 +1,84 @@
+{% comment %}
+  PixelMaster sGTM — Shopify Theme Snippet
+  
+  Instructions:
+  1. Go to Online Store -> Themes -> Actions -> Edit Code
+  2. Under 'Snippets', click 'Add a new snippet' and name it 'pixelmaster-tracking'
+  3. Paste this code and save.
+  4. In 'layout/theme.liquid', find the <head> tag and add: {% render 'pixelmaster-tracking' %}
+{% endcomment %}
+
+{% assign transport_url = 'https://track.yourdomain.com' %}
+{% assign measurement_id = 'G-XXXXXXXXXX' %}
+{% assign container_id = 'GTM-XXXXXXX' %}
+
+<!-- PixelMaster sGTM Loader -->
+<script async src="{{ transport_url | append: '/sdk/v1/pixelmaster.min.js' }}"></script>
+
+<script>
+  (function() {
+    const init = () => {
+      if (window.PixelMaster) {
+        PixelMaster.init({
+          transportUrl: '{{ transport_url }}',
+          measurementId: '{{ measurement_id }}',
+          containerId: '{{ container_id }}',
+          autoPageView: true,
+          source: 'shopify_liquid'
+        });
+
+        {% if customer %}
+          PixelMaster.identify('{{ customer.id }}', {
+            emailHash: '{{ customer.email | downcase | strip | sha256 }}',
+            firstName: '{{ customer.first_name }}',
+            lastName: '{{ customer.last_name }}'
+          });
+        {% endif; %}
+      }
+    };
+    
+    if (window.PixelMaster) {
+      init();
+    } else {
+      window.addEventListener('PixelMasterLoaded', init);
+    }
+  })();
+</script>
+
+{% if template contains 'product' %}
+  <script>
+    window.addEventListener('PixelMasterLoaded', () => {
+      PixelMaster.track('view_item', {
+        currency: '{{ shop.currency }}',
+        value: {{ product.price | money_without_currency | remove: ',' }},
+        items: [{
+          item_id: '{{ product.selected_or_first_available_variant.sku | default: product.id }}',
+          item_name: '{{ product.title | escape }}',
+          price: {{ product.price | money_without_currency | remove: ',' }},
+          quantity: 1
+        }]
+      });
+    });
+  </script>
+{% endif %}
+
+{% if template contains 'cart' %}
+  <script>
+    window.addEventListener('PixelMasterLoaded', () => {
+      PixelMaster.track('view_cart', {
+        currency: '{{ shop.currency }}',
+        value: {{ cart.total_price | money_without_currency | remove: ',' }},
+        items: [
+          {% for item in cart.items %}
+            {
+              item_id: '{{ item.sku | default: item.product_id }}',
+              item_name: '{{ item.product.title | escape }}',
+              price: {{ item.price | money_without_currency | remove: ',' }},
+              quantity: {{ item.quantity }}
+            }{% unless forloop.last %},{% endunless %}
+          {% endfor %}
+        ]
+      });
+    });
+  </script>
+{% endif %}

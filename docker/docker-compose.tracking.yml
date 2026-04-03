@@ -1,0 +1,91 @@
+# ─────────────────────────────────────────────────────────────
+# Hybrid sGTM Tracking Infrastructure
+#
+# Architecture:
+#   1. NGINX reverse proxy — SSL, first-party domain, routing
+#   2. Google Official sGTM — gtm-cloud-image:stable (tag processing)
+#   3. Power-Ups sidecar — Custom Loader, Click ID Restorer, Debug UI
+#   4. Laravel app (host) — Usage metering, DLQ, Consent, Attribution
+#
+# Usage:
+#   docker-compose -f docker/docker-compose.tracking.yml up -d
+#
+# Per-tenant containers are deployed via DockerOrchestratorService.
+# This file defines the template architecture.
+# ─────────────────────────────────────────────────────────────
+
+networks:
+  tracking_network:
+    driver: bridge
+
+services:
+  # ── 1. Reverse Proxy (shared across all tenants) ───────────
+  nginx-proxy:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: tracking_nginx
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/templates:/etc/nginx/templates:ro
+    networks:
+      - tracking_network
+    restart: unless-stopped
+
+  # ── 2. Google Official sGTM (per-tenant, example config) ───
+  # In production, DockerOrchestratorService creates these dynamically.
+  sgtm-engine:
+    image: gcr.io/cloud-tagging-10302018/gtm-cloud-image:stable
+    container_name: sgtm_engine_demo
+    environment:
+      # Base64 config from GTM → Admin → Container Settings
+      # Decoded: id=GTM-XXXX&env=1&auth=YYYY
+      - CONTAINER_CONFIG=${CONTAINER_CONFIG:-aWQ9R1RNLURFTU8wMDEmZW52PTEmYXV0aD1kZW1v}
+      - RUN_AS_PREVIEW_SERVER=false
+      - POLICY_SCRIPT_URL=
+    ports:
+      - "9000:8080"
+    networks:
+      - tracking_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── 3. Power-Ups Sidecar (Custom Loader, Click ID, Debug) ──
+  # Sits alongside Google sGTM, adds our value-adds via NGINX routing.
+  powerups-sidecar:
+    build:
+      context: ./sgtm
+      dockerfile: Dockerfile
+    container_name: sgtm_powerups_demo
+    environment:
+      - SGTM_UPSTREAM=http://sgtm_engine_demo:8080
+      - LARAVEL_API=http://host.docker.internal:8000/api/tracking
+      - PORT=8081
+      - COOKIE_NAME=_fp_id
+      - CLICK_ID_RESTORE=true
+    ports:
+      - "9001:8081"
+    networks:
+      - tracking_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+    depends_on:
+      sgtm-engine:
+        condition: service_healthy

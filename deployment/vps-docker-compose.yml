@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # ── 1. The Laravel Application ──────────────────────────────────────────────
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runner
+    container_name: pm_laravel_app
+    restart: unless-stopped
+    env_file: ../.env
+    volumes:
+      - ../storage:/var/www/storage
+      - ../bootstrap/cache:/var/www/bootstrap/cache
+    networks:
+      - pm_network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # ── 2. Nginx Reverse Proxy (SSL & Routing) ──────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: pm_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../public:/var/www/public
+      - ../docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # Add SSL certs folder here later for Certbot
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    networks:
+      - pm_network
+    depends_on:
+      - app
+
+  # ── 3. Database (MySQL 8) ───────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: pm_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-tenant_master}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pm_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - pm_network
+
+  # ── 4. Cache & Queues (Redis) ───────────────────────────────────────────────
+  redis:
+    image: redis:alpine
+    container_name: pm_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secret}
+    volumes:
+      - pm_redis_data:/data
+    networks:
+      - pm_network
+
+  # ── 5. Worker (For Background Jobs) ─────────────────────────────────────────
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runner
+    container_name: pm_worker
+    restart: unless-stopped
+    command: php artisan queue:work --tries=3
+    env_file: ../.env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - pm_network
+
+networks:
+  pm_network:
+    driver: bridge
+
+volumes:
+  pm_db_data:
+  pm_redis_data:

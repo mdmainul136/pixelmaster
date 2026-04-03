@@ -1,0 +1,431 @@
+{% comment %}
+  PixelMaster sGTM — Theme App Extension Block (Head)
+  Multi-platform tracking: GA4 + Meta Pixel + TikTok Pixel
+  Geo-aware consent: GDPR (opt-in), CCPA (opt-out), others (granted)
+{% endcomment %}
+
+{% assign pm_url = block.settings.transport_url | default: shop.metafields.pixelmaster.transport_url %}
+{% assign pm_mid = block.settings.measurement_id | default: shop.metafields.pixelmaster.measurement_id %}
+{% assign pm_cid = block.settings.container_id | default: shop.metafields.pixelmaster.container_id %}
+{% assign pm_meta = block.settings.meta_pixel_id | default: shop.metafields.pixelmaster.meta_pixel_id %}
+{% assign pm_tiktok = block.settings.tiktok_pixel_id | default: shop.metafields.pixelmaster.tiktok_pixel_id %}
+{% assign pm_consent = block.settings.enable_consent_mode | default: true %}
+{% assign pm_banner = block.settings.enable_consent_banner | default: true %}
+
+{% if pm_url != blank %}
+
+<!-- PixelMaster sGTM v1.0.0 -->
+
+{%- comment -%} ── 1. Consent Mode v2 Defaults ── {%- endcomment -%}
+{% if pm_consent %}
+<script>
+window.dataLayer=window.dataLayer||[];
+function gtag(){dataLayer.push(arguments);}
+gtag('consent','default',{
+  'analytics_storage':'denied',
+  'ad_storage':'denied',
+  'ad_user_data':'denied',
+  'ad_personalization':'denied',
+  'wait_for_update':500
+});
+</script>
+{% endif %}
+
+{%- comment -%} ── 2. Consent Bridge (geo-aware) ── {%- endcomment -%}
+<script>
+(function(){
+'use strict';
+
+// Consent update — unlocks GA4 + Meta + TikTok
+window.pmSgtmUpdateConsent=function(analytics,marketing){
+  if(typeof gtag==='function'){
+    gtag('consent','update',{
+      'analytics_storage':analytics?'granted':'denied',
+      'ad_storage':marketing?'granted':'denied',
+      'ad_user_data':marketing?'granted':'denied',
+      'ad_personalization':marketing?'granted':'denied'
+    });
+  }
+  {% if pm_meta != blank %}
+  if(typeof fbq==='function'){fbq('consent',marketing?'grant':'revoke');}
+  {% endif %}
+  {% if pm_tiktok != blank %}
+  if(typeof ttq!=='undefined'){if(marketing){ttq.grantConsent();}else{ttq.revokeConsent();}}
+  {% endif %}
+};
+
+// GPC detection
+var gpc=navigator.globalPrivacyControl||false;
+if(gpc){window.pmSgtmUpdateConsent(false,false);}
+
+// Read existing consent cookie
+var c=document.cookie.match(/(?:^|;\s*)pm_sgtm_consent=([^;]*)/);
+if(c){
+  try{var p=JSON.parse(decodeURIComponent(c[1]));
+    if(!gpc){window.pmSgtmUpdateConsent(!!p.analytics,!!p.marketing);}
+  }catch(e){}
+}
+})();
+</script>
+
+{%- comment -%} ── 3. GA4 / gtag.js Base Code ── {%- endcomment -%}
+{% if pm_mid != blank %}
+<script async src="{{ pm_url | append: '/gtag/js?id=' | append: pm_mid }}"></script>
+<script>
+gtag('js',new Date());
+gtag('config',{{ pm_mid | json }},{
+  'transport_url':{{ pm_url | json }},
+  'first_party_collection':true,
+  'send_page_view':true
+});
+</script>
+{% endif %}
+
+{%- comment -%} ── 4. Meta Pixel Base Code ── {%- endcomment -%}
+{% if pm_meta != blank %}
+<script>
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init',{{ pm_meta | json }});
+fbq('track','PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id={{ pm_meta }}&ev=PageView&noscript=1"/></noscript>
+{% endif %}
+
+{%- comment -%} ── 5. TikTok Pixel Base Code ── {%- endcomment -%}
+{% if pm_tiktok != blank %}
+<script>
+!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=
+["page","track","identify","instances","debug","on","off","once","ready","alias",
+"group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];
+ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
+for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){
+for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
+ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;
+ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e+""]=+new Date;
+ttq._o=ttq._o||{};ttq._o[e+""]=n||{};var s=d.createElement("script");s.type="text/javascript";
+s.async=!0;s.src=r+"?sdkid="+e+"&lib="+t;d.getElementsByTagName("head")[0].appendChild(s)};
+ttq.load({{ pm_tiktok | json }});ttq.page()}(window,document,'ttq');
+</script>
+{% endif %}
+
+{%- comment -%} ── 6. PixelMaster SDK + E-Commerce Events ── {%- endcomment -%}
+<script async src="{{ pm_url }}/sdk/v1/pixelmaster.min.js"></script>
+<script>
+(function(){
+  function pmInit(){
+    if(!window.PixelMaster)return setTimeout(pmInit,100);
+    PixelMaster.init({
+      transportUrl:{{ pm_url | json }},
+      measurementId:{{ pm_mid | json }},
+      containerId:{{ pm_cid | json }},
+      autoPageView:true,
+      engagement: {
+        scrollTracking: {{ pm_scroll | json }},
+        timeTracking: {{ pm_time | json }},
+        downloadTracking: {{ pm_downloads | json }}
+      },
+      customEvents: {{ block.settings.custom_events_json | default: '[]' }},
+      abTests: {{ block.settings.ab_tests_json | default: '[]' }}
+    });
+
+    {% if customer %}
+    PixelMaster.identify({{ customer.id | json }},{
+      email:{{ customer.email | json }},
+      firstName:{{ customer.first_name | json }},
+      lastName:{{ customer.last_name | json }},
+      phone:{{ customer.phone | json }}
+    });
+    {% endif %}
+
+    {%- comment -%} Product Page — view_item {%- endcomment -%}
+    {% if template contains 'product' %}
+    {% assign v = product.selected_or_first_available_variant %}
+    var prodItem={id:{{ v.sku | default: product.id | json }},name:{{ product.title | json }},price:{{ v.price | money_without_currency | remove:',' }},brand:{{ product.vendor | json }},category:{{ product.type | json }},variant:{{ v.title | json }}};
+    var curr={{ cart.currency.iso_code | json }};
+    PixelMaster.ecommerce.viewItem(prodItem,curr);
+    // GA4
+    dataLayer.push({event:'view_item',ecommerce:{currency:curr,value:prodItem.price,items:[{item_id:prodItem.id,item_name:prodItem.name,price:prodItem.price,item_brand:prodItem.brand,item_category:prodItem.category,item_variant:prodItem.variant,quantity:1}]}});
+    {% if pm_meta != blank %}
+    // Meta
+    fbq('track','ViewContent',{content_ids:[prodItem.id],content_name:prodItem.name,content_type:'product',value:prodItem.price,currency:curr});
+    {% endif %}
+    {% if pm_tiktok != blank %}
+    // TikTok
+    ttq.track('ViewContent',{content_id:prodItem.id,content_name:prodItem.name,content_type:'product',price:prodItem.price,currency:curr});
+    {% endif %}
+    {% endif %}
+
+    {%- comment -%} Collection/Search — view_item_list {%- endcomment -%}
+    {% if template contains 'collection' or template contains 'search' %}
+    var listItems=[];
+    {% for p in collection.products limit:20 %}
+    listItems.push({item_id:{{ p.selected_or_first_available_variant.sku | default: p.id | json }},item_name:{{ p.title | json }},price:{{ p.price | money_without_currency | remove:',' }},item_brand:{{ p.vendor | json }},item_category:{{ p.type | json }}});
+    {% endfor %}
+    if(listItems.length){
+      PixelMaster.ecommerce.viewItemList({{ collection.title | default:'Search Results' | json }},listItems);
+      dataLayer.push({event:'view_item_list',ecommerce:{item_list_name:{{ collection.title | default:'Search Results' | json }},items:listItems}});
+    }
+    {% endif %}
+
+    {%- comment -%} Cart — view_cart {%- endcomment -%}
+    {% if template contains 'cart' %}
+    var ci=[],cv={{ cart.total_price | money_without_currency | remove:',' }},cc={{ cart.currency.iso_code | json }};
+    {% for item in cart.items %}
+    ci.push({item_id:{{ item.sku | default: item.product_id | json }},item_name:{{ item.product.title | json }},price:{{ item.original_line_price | divided_by: item.quantity | money_without_currency | remove:',' }},quantity:{{ item.quantity }},item_variant:{{ item.variant.title | json }}});
+    {% endfor %}
+    if(ci.length){
+      PixelMaster.ecommerce.viewCart(ci,cv,cc);
+      dataLayer.push({event:'view_cart',ecommerce:{currency:cc,value:cv,items:ci}});
+    }
+    {% endif %}
+  }
+  pmInit();
+
+  {%- comment -%} Add to Cart listener {%- endcomment -%}
+  document.addEventListener('click',function(e){
+    var btn=e.target.closest('[type="submit"][name="add"],.product-form__submit,.add-to-cart,.shopify-payment-button__button');
+    if(!btn||!window.PixelMaster)return;
+    {% if product %}
+    {% assign v = product.selected_or_first_available_variant %}
+    var qty=parseInt((document.querySelector('[name="quantity"]')||{}).value||1);
+    var atcItem={id:{{ v.sku | default: product.id | json }},name:{{ product.title | json }},price:{{ v.price | money_without_currency | remove:',' }},brand:{{ product.vendor | json }},category:{{ product.type | json }}};
+    var atcCurr={{ cart.currency.iso_code | json }};
+    PixelMaster.ecommerce.addToCart(atcItem,qty,atcCurr);
+    dataLayer.push({event:'add_to_cart',ecommerce:{currency:atcCurr,value:atcItem.price*qty,items:[{item_id:atcItem.id,item_name:atcItem.name,price:atcItem.price,quantity:qty}]}});
+    {% if pm_meta != blank %}
+    fbq('track','AddToCart',{content_ids:[atcItem.id],content_name:atcItem.name,content_type:'product',value:atcItem.price*qty,currency:atcCurr});
+    {% endif %}
+    {% if pm_tiktok != blank %}
+    ttq.track('AddToCart',{content_id:atcItem.id,content_name:atcItem.name,quantity:qty,price:atcItem.price,value:atcItem.price*qty,currency:atcCurr});
+    {% endif %}
+    {% endif %}
+  });
+
+  {%- comment -%} Shopify AJAX Cart API intercept {%- endcomment -%}
+  var origFetch=window.fetch;
+  window.fetch=function(){
+    var url=arguments[0];
+    if(typeof url==='string'&&url.indexOf('/cart/add')!==-1){
+      var p=origFetch.apply(this,arguments);
+      p.then(function(r){return r.clone().json();}).then(function(d){
+        if(d&&d.items&&window.PixelMaster){
+          d.items.forEach(function(item){
+            dataLayer.push({event:'add_to_cart',ecommerce:{currency:{{ cart.currency.iso_code | json }},value:item.final_line_price/100,items:[{item_id:item.sku||item.product_id,item_name:item.title,price:item.final_price/100,quantity:item.quantity}]}});
+          });
+        }
+      }).catch(function(){});
+      return p;
+    }
+    return origFetch.apply(this,arguments);
+  };
+})();
+</script>
+
+{%- comment -%} ── 7. Consent Banner (geo-aware) ── {%- endcomment -%}
+{% if pm_consent and pm_banner %}
+<style>
+.pm-cb{position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#fff;border-top:1px solid #e1e3e5;padding:16px 24px;display:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;color:#202223;box-shadow:0 -2px 8px rgba(0,0,0,0.08)}
+.pm-cb-inner{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.pm-cb-text{flex:1;min-width:200px;line-height:1.5}
+.pm-cb-text a{color:#008060;text-decoration:underline}
+.pm-cb-actions{display:flex;gap:8px;flex-shrink:0}
+.pm-cb-btn{padding:8px 20px;border-radius:6px;border:1px solid #c9cccf;background:#fff;color:#202223;font-size:13px;font-weight:500;cursor:pointer}
+.pm-cb-btn:hover{background:#f6f6f7}
+.pm-cb-btn--primary{background:#008060;color:#fff;border-color:#006e52}
+.pm-cb-btn--primary:hover{background:#006e52}
+@media(max-width:600px){.pm-cb-inner{flex-direction:column;text-align:center}.pm-cb-actions{justify-content:center}}
+</style>
+<div id="pm-cb" class="pm-cb">
+  <div class="pm-cb-inner">
+    <div class="pm-cb-text" id="pm-cb-text"></div>
+    <div class="pm-cb-actions" id="pm-cb-actions"></div>
+  </div>
+</div>
+<script>
+(function(){
+  'use strict';
+  var banner=document.getElementById('pm-cb');
+  if(!banner)return;
+
+  // Already consented?
+  if(document.cookie.indexOf('pm_sgtm_consent=')!==-1)return;
+  if(navigator.globalPrivacyControl){svC({necessary:true,analytics:false,marketing:false,gpc:true});return;}
+
+  // Determine region from Shopify country
+  var country={{ localization.country.iso_code | default: 'XX' | json }};
+  var gdpr=['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','IS','LI','NO','GB'];
+  var optIn=['BR','CA','ZA','TH','JP','KR','CN'];
+  var isGDPR=gdpr.indexOf(country)!==-1;
+  var isOptIn=optIn.indexOf(country)!==-1||isGDPR;
+  var isCCPA=country==='US';
+
+  if(!isOptIn&&!isCCPA){
+    // No regulation — auto-grant
+    window.pmSgtmUpdateConsent(true,true);
+    svC({necessary:true,analytics:true,marketing:true});
+    return;
+  }
+
+  // Show banner
+  banner.style.display='block';
+  var txt=document.getElementById('pm-cb-text');
+  var acts=document.getElementById('pm-cb-actions');
+
+  if(isOptIn){
+    txt.innerHTML='We use cookies to enhance your experience and analyze traffic. Choose your preferences.';
+    acts.innerHTML='<button class="pm-cb-btn" id="pm-rej">Reject all</button><button class="pm-cb-btn pm-cb-btn--primary" id="pm-acc">Accept all</button>';
+    document.getElementById('pm-rej').onclick=function(){hc(false,false);};
+    document.getElementById('pm-acc').onclick=function(){hc(true,true);};
+  }else{
+    // CCPA
+    window.pmSgtmUpdateConsent(true,true);
+    txt.innerHTML='We use cookies and similar technologies. You may opt out of the sale of your personal information.';
+    acts.innerHTML='<button class="pm-cb-btn" id="pm-dns">Do not sell my info</button><button class="pm-cb-btn pm-cb-btn--primary" id="pm-ok">OK</button>';
+    document.getElementById('pm-dns').onclick=function(){hc(true,false);};
+    document.getElementById('pm-ok').onclick=function(){hc(true,true);};
+  }
+
+  function hc(a,m){
+    svC({necessary:true,analytics:a,marketing:m});
+    if(typeof window.pmSgtmUpdateConsent==='function')window.pmSgtmUpdateConsent(a,m);
+    banner.style.display='none';
+  }
+  function svC(o){
+    var d=new Date();d.setTime(d.getTime()+365*86400000);
+    document.cookie='pm_sgtm_consent='+encodeURIComponent(JSON.stringify(o))+';expires='+d.toUTCString()+';path=/;SameSite=Lax;Secure';
+  }
+})();
+</script>
+{% endif %}
+
+{%- comment -%} ── 8. Engagement Tracking ── {%- endcomment -%}
+{% assign pm_scroll = block.settings.enable_scroll_tracking | default: true %}
+{% assign pm_time = block.settings.enable_time_tracking | default: true %}
+{% assign pm_downloads = block.settings.enable_download_tracking | default: true %}
+
+
+{%- comment -%} ── 9. UTM Attribution ── {%- endcomment -%}
+<script>
+(function(){
+'use strict';
+var utmKeys=['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id'];
+var cids={gclid:'google',gbraid:'google',wbraid:'google',fbclid:'meta',ttclid:'tiktok',msclkid:'microsoft'};
+var sp=new URLSearchParams(location.search);
+var utms={},hasU=false;
+utmKeys.forEach(function(k){var v=sp.get(k);if(v){utms[k]=v;hasU=true;}});
+Object.keys(cids).forEach(function(k){var v=sp.get(k);if(v){utms.click_id=v;utms.click_platform=cids[k];hasU=true;}});
+
+window.dataLayer=window.dataLayer||[];
+// Read existing cookie
+var c=document.cookie.match(/(?:^|;\s*)pm_sgtm_attribution=([^;]*)/);
+if(c){try{var a=JSON.parse(decodeURIComponent(c[1]));
+  if(a.last_touch){dataLayer.push({pm_attribution:{first_touch:a.first_touch||{},last_touch:a.last_touch||{}}});}
+}catch(e){}}
+// Save new UTMs
+if(hasU){
+  utms.landing_page=location.href;utms.timestamp=Math.floor(Date.now()/1000);utms.referrer=document.referrer||'';
+  var ex={};if(c){try{ex=JSON.parse(decodeURIComponent(c[1]));}catch(e){}}
+  if(!ex.first_touch)ex.first_touch=utms;ex.last_touch=utms;
+  var d=new Date();d.setTime(d.getTime()+90*86400000);
+  document.cookie='pm_sgtm_attribution='+encodeURIComponent(JSON.stringify(ex))+';expires='+d.toUTCString()+';path=/;SameSite=Lax'+(location.protocol==='https:'?';Secure':'');
+  dataLayer.push({pm_attribution:{first_touch:ex.first_touch,last_touch:ex.last_touch}});
+}
+})();
+</script>
+
+<!-- /PixelMaster sGTM -->
+
+{% endif %}
+
+{% schema %}
+{
+  "name": "PixelMaster Tracking",
+  "target": "head",
+  "settings": [
+    {
+      "type": "url",
+      "id": "transport_url",
+      "label": "Transport URL",
+      "info": "Your sGTM tracking domain (e.g. https://track.yourdomain.com)"
+    },
+    {
+      "type": "text",
+      "id": "measurement_id",
+      "label": "GA4 Measurement ID",
+      "placeholder": "G-XXXXXXXXXX"
+    },
+    {
+      "type": "text",
+      "id": "container_id",
+      "label": "GTM Container ID",
+      "placeholder": "GTM-XXXXXXX"
+    },
+    {
+      "type": "text",
+      "id": "meta_pixel_id",
+      "label": "Meta Pixel ID",
+      "placeholder": "123456789012345"
+    },
+    {
+      "type": "text",
+      "id": "tiktok_pixel_id",
+      "label": "TikTok Pixel ID",
+      "placeholder": "CXXXXXXXXXXXXXXXXX"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_consent_mode",
+      "label": "Enable Consent Mode v2",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_consent_banner",
+      "label": "Show consent banner",
+      "default": true,
+      "info": "Geo-aware: GDPR opt-in, CCPA opt-out, hidden for other regions"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_scroll_tracking",
+      "label": "Track scroll depth",
+      "default": true,
+      "info": "25%, 50%, 75%, 100% milestones"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_time_tracking",
+      "label": "Track time on page",
+      "default": true,
+      "info": "10s, 30s, 60s, 180s + engaged sessions"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_download_tracking",
+      "label": "Track file downloads",
+      "default": true,
+      "info": "PDF, ZIP, DOC, XLS, CSV, EXE and more"
+    },
+    {
+      "type": "header",
+      "content": "Advanced Automation"
+    },
+    {
+      "type": "textarea",
+      "id": "custom_events_json",
+      "label": "Custom Events (JSON)",
+      "info": "[{\"selector\":\".btn\",\"eventName\":\"click_me\"}]"
+    },
+    {
+      "type": "textarea",
+      "id": "ab_tests_json",
+      "label": "A/B Tests (JSON)",
+      "info": "[{\"id\":\"test1\",\"name\":\"CTA Color\",\"variants\":[\"Green\",\"Red\"]}]"
+    }
+  ]
+}
+{% endschema %}

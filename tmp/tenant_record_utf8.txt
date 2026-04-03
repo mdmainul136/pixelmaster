@@ -1,0 +1,84 @@
+﻿Array
+(
+    [id] => growth-test
+    [tenant_id] => growth-test
+    [plan] => ior-independent
+    [db_limit_gb] => 50
+    [trial_ends_at] => 
+    [domain] => 
+    [tenant_name] => Growth-test
+    [company_name] => Growth-test Co.
+    [business_type] => cross-border-ior
+    [cr_number] => 
+    [vat_number] => 
+    [business_category] => cross-border-ior
+    [admin_name] => Admin
+    [database_name] => tenant_growth-test
+    [db_host] => 
+    [db_port] => 
+    [db_region] => 
+    [admin_email] => growth-test@example.com
+    [phone] => 123456789
+    [address] => Test Address 3
+    [city] => Dhaka
+    [country] => Bangladesh
+    [currency_code] => BDT
+    [currency_symbol] => αº│
+    [is_global] => 
+    [store_status] => open
+    [timezone] => UTC
+    [date_format] => DD/MM/YYYY
+    [measurement_unit] => metric
+    [fiscal_year_start] => 1
+    [invoice_prefix] => 
+    [shipping_origin_lat] => 
+    [shipping_origin_lng] => 
+    [default_courier] => 
+    [rfm_frequency] => weekly
+    [sentiment_threshold] => medium
+    [stockout_buffer] => 5
+    [localizations] => 
+    [status] => active
+    [theme_id] => lovable-ior
+    [onboarded_at] => 2026-03-08T11:59:00.000000Z
+    [data] => 
+    [usage_stats] => 
+    [feature_flags] => 
+    [api_key] => 
+    [logo_url] => 
+    [favicon_url] => 
+    [primary_color] => #6366f1
+    [secondary_color] => #4f46e5
+    [facebook_url] => 
+    [instagram_url] => 
+    [twitter_url] => 
+    [linkedin_url] => 
+    [database_plan_id] => 
+    [db_username] => 
+    [provisioning_status] => completed
+    [created_at] => 2026-03-08T03:47:59.000000Z
+    [updated_at] => 2026-03-08T03:47:59.000000Z
+    [state] => Dhaka
+    [upazilla] => gulshan
+    [zip_code] => 1212
+    [postOffice] => Banani
+    [tax_regions] => Array
+        (
+        )
+
+    [business_data] => Array
+        (
+            [ownerName] => 
+        )
+
+    [tenancy_db_name] => tenant_growth-test
+    [available_countries] => Array
+        (
+        )
+
+    [auto_language_switcher] => 1
+    [multi_currency_detection] => 1
+)
+= true
+
+

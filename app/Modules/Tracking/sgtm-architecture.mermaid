@@ -1,0 +1,6 @@
+graph TD
+    User["🌐 Browser (Ad-blocker Enabled)"] -->|Loads /cdn/a7x.js| Sidecar["🚀 Sidecar (Node.js Proxy)"]
+    Sidecar -->|Fetches & Rewrites| GTM["📦 Google Tag Manager"]
+    User -->|Sends /g/collect| Nginx["🛡️ NGINX Router"]
+    Nginx -->|Routes to Port 8080| sGTM["🧠 sGTM Engine (GCR Image)"]
+    sGTM -->|Processes Data| FB["🔵 Facebook CAPI / TikTok API"]

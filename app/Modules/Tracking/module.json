@@ -1,0 +1,28 @@
+{
+    "slug": "tracking",
+    "name": "Server-Side Tracking (sGTM)",
+    "group": "analytics",
+    "business_types": [
+        "all"
+    ],
+    "auto_enable": true,
+    "is_marketplace": false,
+    "depends_on": [],
+    "features": {
+        "event_tracking": true,
+        "sgtm_proxy": true,
+        "consent_mode_v2": true,
+        "measurement_protocol": true,
+        "basic_analytics": true,
+        "destinations": 1,
+        "enhanced_conversions": true,
+        "tag_management": true,
+        "attribution": true,
+        "server_containers": 1,
+        "cross_channel_attribution": true,
+        "custom_destinations": true,
+        "fleet_management": true,
+        "api_access": true
+    },
+    "version": "2.0.0"
+}

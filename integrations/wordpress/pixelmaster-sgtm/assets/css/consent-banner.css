@@ -1,0 +1,233 @@
+/**
+ * PixelMaster sGTM — Cookie Consent Banner
+ *
+ * Lightweight, accessible, responsive.
+ * Dark-mode aware via prefers-color-scheme.
+ */
+
+/* ── Base Banner ── */
+.pm-consent-banner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.15);
+    animation: pmConsentSlide 0.35s ease-out;
+}
+
+.pm-consent-bottom {
+    bottom: 0;
+    animation-name: pmConsentSlideUp;
+}
+
+.pm-consent-top {
+    top: 0;
+    animation-name: pmConsentSlideDown;
+}
+
+/* ── Inner container ── */
+.pm-consent-inner {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 18px 24px;
+    background: #ffffff;
+    border-top: 3px solid #4f46e5;
+}
+
+.pm-consent-top .pm-consent-inner {
+    border-top: none;
+    border-bottom: 3px solid #4f46e5;
+}
+
+/* ── Text ── */
+.pm-consent-text p {
+    margin: 0 0 12px;
+    color: #374151;
+}
+
+.pm-consent-text a {
+    color: #4f46e5;
+    text-decoration: underline;
+}
+
+.pm-consent-text a:hover {
+    color: #3730a3;
+}
+
+/* ── Category toggles ── */
+.pm-consent-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 12px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.pm-consent-cat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    flex: 1 1 200px;
+}
+
+.pm-consent-cat input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #4f46e5;
+    cursor: pointer;
+}
+
+.pm-consent-cat span {
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.pm-consent-cat small {
+    color: #6b7280;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
+/* ── Action buttons ── */
+.pm-consent-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.pm-consent-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.pm-consent-btn-primary {
+    background: #4f46e5;
+    color: #ffffff;
+}
+
+.pm-consent-btn-primary:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+}
+
+.pm-consent-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.pm-consent-btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+/* ── Animations ── */
+@keyframes pmConsentSlideUp {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes pmConsentSlideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ── Dark Mode ── */
+@media (prefers-color-scheme: dark) {
+    .pm-consent-inner {
+        background: #1f2937;
+        border-color: #6366f1;
+    }
+
+    .pm-consent-text p {
+        color: #e5e7eb;
+    }
+
+    .pm-consent-text a {
+        color: #818cf8;
+    }
+
+    .pm-consent-categories {
+        background: #111827;
+        border-color: #374151;
+    }
+
+    .pm-consent-cat span {
+        color: #f3f4f6;
+    }
+
+    .pm-consent-cat small {
+        color: #9ca3af;
+    }
+
+    .pm-consent-btn-secondary {
+        background: #374151;
+        color: #e5e7eb;
+        border-color: #4b5563;
+    }
+
+    .pm-consent-btn-secondary:hover {
+        background: #4b5563;
+    }
+}
+
+/* ── Mobile responsive ── */
+@media (max-width: 600px) {
+    .pm-consent-inner {
+        padding: 14px 16px;
+    }
+
+    .pm-consent-actions {
+        flex-direction: column;
+    }
+
+    .pm-consent-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .pm-consent-categories {
+        flex-direction: column;
+    }
+
+    .pm-consent-cat {
+        flex: 1 1 100%;
+    }
+}
+
+/* ── Focus for accessibility ── */
+.pm-consent-btn:focus-visible {
+    outline: 3px solid #6366f1;
+    outline-offset: 2px;
+}
+
+.pm-consent-cat input:focus-visible {
+    outline: 3px solid #6366f1;
+    outline-offset: 2px;
+}

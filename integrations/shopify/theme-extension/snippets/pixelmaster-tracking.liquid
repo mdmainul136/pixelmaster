@@ -1,0 +1,80 @@
+{% comment %}
+  PixelMaster sGTM — Shopify Snippet Version (for manual theme.liquid insertion)
+  
+  Multi-platform: GA4 + Meta Pixel + TikTok Pixel
+  Geo-aware consent: GDPR (opt-in), CCPA (opt-out), others (auto-grant)
+  
+  Usage in theme.liquid <head>:
+    {% render 'pixelmaster-tracking' %}
+{% endcomment %}
+
+{% assign pm_url = shop.metafields.pixelmaster.transport_url | default: '' %}
+{% assign pm_mid = shop.metafields.pixelmaster.measurement_id | default: '' %}
+{% assign pm_cid = shop.metafields.pixelmaster.container_id | default: '' %}
+{% assign pm_meta = shop.metafields.pixelmaster.meta_pixel_id | default: '' %}
+{% assign pm_tiktok = shop.metafields.pixelmaster.tiktok_pixel_id | default: '' %}
+
+{% if pm_url != blank %}
+
+<!-- PixelMaster sGTM v1.0.0 -->
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('consent','default',{'analytics_storage':'denied','ad_storage':'denied','ad_user_data':'denied','ad_personalization':'denied','wait_for_update':500});
+window.pmSgtmUpdateConsent=function(a,m){
+  if(typeof gtag==='function'){gtag('consent','update',{'analytics_storage':a?'granted':'denied','ad_storage':m?'granted':'denied','ad_user_data':m?'granted':'denied','ad_personalization':m?'granted':'denied'});}
+  {% if pm_meta != blank %}if(typeof fbq==='function'){fbq('consent',m?'grant':'revoke');}{% endif %}
+  {% if pm_tiktok != blank %}if(typeof ttq!=='undefined'){if(m){ttq.grantConsent();}else{ttq.revokeConsent();}}{% endif %}
+};
+var gpc=navigator.globalPrivacyControl||false;
+if(gpc)window.pmSgtmUpdateConsent(false,false);
+var c=document.cookie.match(/(?:^|;\s*)pm_sgtm_consent=([^;]*)/);
+if(c){try{var p=JSON.parse(decodeURIComponent(c[1]));if(!gpc)window.pmSgtmUpdateConsent(!!p.analytics,!!p.marketing);}catch(e){}}
+</script>
+
+{% if pm_mid != blank %}
+<script async src="{{ pm_url | append: '/gtag/js?id=' | append: pm_mid }}"></script>
+<script>gtag('js',new Date());gtag('config',{{ pm_mid | json }},{'transport_url':{{ pm_url | json }},'first_party_collection':true,'send_page_view':true});</script>
+{% endif %}
+
+{% if pm_meta != blank %}
+<script>!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init',{{ pm_meta | json }});fbq('track','PageView');</script>
+{% endif %}
+
+{% if pm_tiktok != blank %}
+<script>!function(w,d,t){w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e+""]=+new Date;ttq._o=ttq._o||{};ttq._o[e+""]=n||{};var s=d.createElement("script");s.type="text/javascript";s.async=!0;s.src=r+"?sdkid="+e+"&lib="+t;d.getElementsByTagName("head")[0].appendChild(s)};ttq.load({{ pm_tiktok | json }});ttq.page()}(window,document,'ttq');</script>
+{% endif %}
+
+<script async src="{{ pm_url }}/sdk/v1/pixelmaster.min.js"></script>
+<script>
+(function(){
+  function pmInit(){
+    if(!window.PixelMaster)return setTimeout(pmInit,100);
+    PixelMaster.init({transportUrl:{{ pm_url | json }},measurementId:{{ pm_mid | json }},containerId:{{ pm_cid | json }},autoPageView:true});
+    {% if customer %}PixelMaster.identify({{ customer.id | json }},{email:{{ customer.email | json }},firstName:{{ customer.first_name | json }},lastName:{{ customer.last_name | json }}});{% endif %}
+
+    {% if template contains 'product' %}
+    {% assign v = product.selected_or_first_available_variant %}
+    var item={id:{{ v.sku | default: product.id | json }},name:{{ product.title | json }},price:{{ v.price | money_without_currency | remove:',' }},brand:{{ product.vendor | json }},category:{{ product.type | json }}};
+    var curr={{ cart.currency.iso_code | json }};
+    PixelMaster.ecommerce.viewItem(item,curr);
+    dataLayer.push({event:'view_item',ecommerce:{currency:curr,value:item.price,items:[{item_id:item.id,item_name:item.name,price:item.price,item_brand:item.brand,item_category:item.category,quantity:1}]}});
+    {% if pm_meta != blank %}fbq('track','ViewContent',{content_ids:[item.id],content_name:item.name,content_type:'product',value:item.price,currency:curr});{% endif %}
+    {% if pm_tiktok != blank %}ttq.track('ViewContent',{content_id:item.id,content_name:item.name,content_type:'product',price:item.price,currency:curr});{% endif %}
+    {% endif %}
+
+    {% if template contains 'collection' or template contains 'search' %}
+    var li=[];{% for p in collection.products limit:20 %}li.push({item_id:{{ p.selected_or_first_available_variant.sku | default: p.id | json }},item_name:{{ p.title | json }},price:{{ p.price | money_without_currency | remove:',' }}});{% endfor %}
+    if(li.length){PixelMaster.ecommerce.viewItemList({{ collection.title | default:'Search' | json }},li);dataLayer.push({event:'view_item_list',ecommerce:{items:li}});}
+    {% endif %}
+
+    {% if template contains 'cart' %}
+    var ci=[];{% for item in cart.items %}ci.push({item_id:{{ item.sku | default: item.product_id | json }},item_name:{{ item.product.title | json }},price:{{ item.original_line_price | divided_by: item.quantity | money_without_currency | remove:',' }},quantity:{{ item.quantity }}});{% endfor %}
+    if(ci.length){PixelMaster.ecommerce.viewCart(ci,{{ cart.total_price | money_without_currency | remove:',' }},{{ cart.currency.iso_code | json }});}
+    {% endif %}
+  }
+  pmInit();
+})();
+</script>
+<!-- /PixelMaster sGTM -->
+
+{% endif %}

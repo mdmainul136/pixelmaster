@@ -1,0 +1,19 @@
+{
+  "name": "@pixelmaster/js-sdk",
+  "version": "1.0.0",
+  "description": "PixelMaster sGTM — Lightweight server-side tracking SDK for any website",
+  "main": "dist/pixelmaster.min.js",
+  "module": "src/pixelmaster.js",
+  "files": ["dist/", "src/"],
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch"
+  },
+  "keywords": ["sgtm", "server-side-tracking", "google-tag-manager", "analytics", "pixel", "meta-capi", "ga4"],
+  "author": "PixelMaster",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pixelmaster/js-sdk"
+  }
+}

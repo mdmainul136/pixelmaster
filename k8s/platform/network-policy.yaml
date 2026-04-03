@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Network Policy: Prevent cross-tenant traffic leakage in the cluster
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate-tenants
+  namespace: platform-core
+spec:
+  podSelector:
+    matchLabels:
+      app: platform
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform-core
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx

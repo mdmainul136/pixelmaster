@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .dockerignore — Exclude files from Docker build context
+# Smaller context = faster builds, no secrets leaked into image
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD & DevOps
+.github
+.circleci
+.travis.yml
+Jenkinsfile
+*.yaml
+!docker-compose*.yml
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Laravel dev artifacts
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*
+
+# Environment — NEVER bake .env into images
+.env
+.env.*
+!.env.example
+
+# Test files
+tests/
+phpunit.xml
+.phpunit.result.cache
+
+# Dev scripts & debug files
+debug_*.php
+test_*.php
+final_*.php
+*.sh
+
+# IDE & OS
+.idea
+.vscode
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docs
+*.md
+docs/
+
+# Docker files themselves (already in context at root level — no need to copy into image)
+docker/
+docker-compose*.yml
+Dockerfile*
+
+# Frontend source (compiled assets go into public/ via node-build stage)
+resources/js
+resources/css
+resources/sass
+vite.config.*
+package.json
+package-lock.json
+webpack.mix.js

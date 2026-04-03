@@ -1,0 +1,2 @@
+Verification URL for mdmainul8136@gmail.com:
+http://127.0.0.1:8000/email/verify/39/6ed60dd3f94c95fd56a27b3331fa86e222fc2ebb?expires=1774878238&signature=a2db3190f5a232f083a61e272bef363c72edc4146b070ee05ea98f2aa31e5616

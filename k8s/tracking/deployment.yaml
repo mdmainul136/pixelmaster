@@ -1,0 +1,247 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 4: Kubernetes EKS Deployment for Per-Tenant sGTM
+#
+# This replaces DockerOrchestratorService's docker run / SSH approach.
+# Each tenant gets an isolated Kubernetes Namespace with:
+#   - 1 Deployment: sGTM Engine (GCR image) + Power-Ups Sidecar (sidecar container)
+#   - 1 Service: ClusterIP (NGINX ingress routes to it)
+#   - 1 HPA: scales 1→5 pods based on CPU
+#   - 1 ConfigMap: tenant-specific env vars
+#
+# Usage:
+#   kubectl apply -f k8s/tracking/namespace.yaml
+#   envsubst < k8s/tracking/deployment.yaml | kubectl apply -f -
+#
+# Variables (substituted by DockerOrchestratorService via PHP K8s API):
+#   $TENANT_ID         e.g. tenant_abc123
+#   $CONTAINER_ID      e.g. GTM-XXXXXXX
+#   $CONTAINER_CONFIG  base64-encoded GTM container config
+#   $API_SECRET        X-Container-Secret value
+#   $LOADER_PATH       e.g. /cdn/a7x.js
+#   $POWERUPS_IMAGE    e.g. 123456789.dkr.ecr.region.amazonaws.com/sgtm-powerups:v2.0
+# ─────────────────────────────────────────────────────────────────────────────
+
+---
+# 1. Namespace — one per tenant
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tracking-${TENANT_ID}
+  labels:
+    app: sgtm
+    tenant: ${TENANT_ID}
+    managed-by: tracking-orchestrator
+
+---
+# 2. ConfigMap — tenant-specific env (non-secret values)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sgtm-config-${TENANT_ID}
+  namespace: tracking-${TENANT_ID}
+data:
+  CONTAINER_ID:      "${CONTAINER_ID}"
+  LOADER_PATH:       "${LOADER_PATH}"
+  CLICK_ID_RESTORE:  "true"
+  COOKIE_NAME:       "_fp_id"
+  COOKIE_MAX_AGE:    "31536000"
+  DEBUG_AUTH:        ""
+  SGTM_UPSTREAM:     "http://localhost:8080"  # Sidecar → sGTM within same pod
+
+---
+# 3. Secret — sensitive values
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sgtm-secret-${TENANT_ID}
+  namespace: tracking-${TENANT_ID}
+type: Opaque
+stringData:
+  CONTAINER_CONFIG: "${CONTAINER_CONFIG}"
+  API_SECRET:        "${API_SECRET}"
+  POWERUPS_URL:      "https://api.yourplatform.com/api/tracking"
+
+---
+# 4. Deployment — sGTM Engine + Power-Ups Sidecar in same pod
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sgtm-${TENANT_ID}
+  namespace: tracking-${TENANT_ID}
+  labels:
+    app: sgtm
+    tenant: ${TENANT_ID}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sgtm
+      tenant: ${TENANT_ID}
+  template:
+    metadata:
+      labels:
+        app: sgtm
+        tenant: ${TENANT_ID}
+    spec:
+      # ── Security Context (non-root) ─────────────────────────────────────────
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+        # ── Container 1: GCR sGTM Engine ─────────────────────────────────────
+        - name: sgtm-engine
+          image: gcr.io/cloud-tagging-10302018/gtm-cloud-image:stable
+          ports:
+            - containerPort: 8080
+              name: sgtm
+          env:
+            - name: RUN_AS_PREVIEW_SERVER
+              value: "false"
+            - name: POLICY_SCRIPT_URL
+              value: ""
+            - name: CONTAINER_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: sgtm-secret-${TENANT_ID}
+                  key: CONTAINER_CONFIG
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+        # ── Container 2: Power-Ups Sidecar ───────────────────────────────────
+        - name: powerups-sidecar
+          image: ${POWERUPS_IMAGE}
+          ports:
+            - containerPort: 8081
+              name: sidecar
+          envFrom:
+            - configMapRef:
+                name: sgtm-config-${TENANT_ID}
+            - secretRef:
+                name: sgtm-secret-${TENANT_ID}
+          env:
+            - name: PORT
+              value: "8081"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 15
+
+      # ── Restart policy ──────────────────────────────────────────────────────
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+# 5. Service — ClusterIP (NGINX ingress routes to this)
+apiVersion: v1
+kind: Service
+metadata:
+  name: sgtm-svc-${TENANT_ID}
+  namespace: tracking-${TENANT_ID}
+spec:
+  selector:
+    app: sgtm
+    tenant: ${TENANT_ID}
+  ports:
+    - name: sgtm-engine
+      port: 8080
+      targetPort: 8080
+    - name: powerups-sidecar
+      port: 8081
+      targetPort: 8081
+  type: ClusterIP
+
+---
+# 6. HorizontalPodAutoscaler — scale 1→5 pods at 60% CPU
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sgtm-hpa-${TENANT_ID}
+  namespace: tracking-${TENANT_ID}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sgtm-${TENANT_ID}
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+
+---
+# 7. NGINX Ingress — routes tenant domain to the service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sgtm-ingress-${TENANT_ID}
+  namespace: tracking-${TENANT_ID}
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "5"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - "${TRACKING_DOMAIN}"
+      secretName: tls-sgtm-${TENANT_ID}
+  rules:
+    - host: "${TRACKING_DOMAIN}"
+      http:
+        paths:
+          # Sidecar paths (ad-block bypass loader, debug UI)
+          - path: /(cdn|assets|lib|static|debug)
+            pathType: Prefix
+            backend:
+              service:
+                name: sgtm-svc-${TENANT_ID}
+                port:
+                  number: 8081
+          # Everything else → sGTM engine
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sgtm-svc-${TENANT_ID}
+                port:
+                  number: 8080

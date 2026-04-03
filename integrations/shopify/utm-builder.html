@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTM Campaign URL Builder — PixelMaster</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+            background: #f6f6f7; color: #202223; line-height: 1.5;
+        }
+        .pm-page { max-width: 720px; margin: 32px auto; padding: 0 16px; }
+        .pm-page-header { margin-bottom: 20px; }
+        .pm-page-header h1 { font-size: 20px; font-weight: 600; }
+        .pm-page-header p { font-size: 13px; color: #6d7175; margin-top: 4px; }
+
+        .pm-card { background: #fff; border: 1px solid #e1e3e5; border-radius: 8px; overflow: hidden; margin-bottom: 16px; }
+        .pm-card-header { padding: 16px 20px; border-bottom: 1px solid #e1e3e5; }
+        .pm-card-header h2 { font-size: 14px; font-weight: 600; }
+        .pm-card-body { padding: 0; }
+
+        .pm-field { display: flex; align-items: flex-start; padding: 14px 20px; border-bottom: 1px solid #f1f2f3; gap: 16px; }
+        .pm-field:last-child { border-bottom: none; }
+        .pm-field-label { width: 160px; flex-shrink: 0; padding-top: 6px; }
+        .pm-field-label label { font-size: 13px; font-weight: 500; display: block; }
+        .pm-field-label .pm-hint { font-size: 12px; color: #6d7175; font-weight: 400; margin-top: 2px; display: block; }
+        .pm-field-label .pm-req { color: #d72c0d; }
+        .pm-field-input { flex: 1; min-width: 0; }
+
+        .pm-input {
+            width: 100%; padding: 8px 12px; font-size: 13px;
+            border: 1px solid #c9cccf; border-radius: 6px; background: #fff; color: #202223;
+            outline: none; transition: border-color 0.15s;
+        }
+        .pm-input:focus { border-color: #008060; box-shadow: 0 0 0 1px #008060; }
+        .pm-input::placeholder { color: #b5b5b5; }
+        .pm-input--readonly { background: #f9fafb; font-family: monospace; font-size: 12px; }
+
+        .pm-actions { padding: 16px 20px; display: flex; gap: 8px; border-top: 1px solid #e1e3e5; }
+        .pm-btn {
+            display: inline-flex; align-items: center; gap: 6px; padding: 8px 20px;
+            font-size: 13px; font-weight: 500; border-radius: 6px; border: 1px solid transparent;
+            cursor: pointer; transition: background 0.15s; white-space: nowrap;
+        }
+        .pm-btn--primary { background: #008060; color: #fff; border-color: #006e52; }
+        .pm-btn--primary:hover { background: #006e52; }
+        .pm-btn--secondary { background: #fff; color: #202223; border-color: #c9cccf; }
+        .pm-btn--secondary:hover { background: #f6f6f7; }
+        .pm-btn--sm { padding: 6px 14px; font-size: 12px; }
+
+        .pm-result { padding: 16px 20px; border-top: 1px solid #e1e3e5; display: none; }
+        .pm-result-label { font-size: 12px; font-weight: 500; color: #6d7175; margin-bottom: 6px; display: block; }
+        .pm-result-row { display: flex; gap: 8px; align-items: center; }
+        .pm-result-row .pm-input { flex: 1; }
+
+        .pm-preview { padding: 12px 20px; background: #f4f6f8; border-top: 1px solid #e1e3e5; font-size: 12px; color: #6d7175; display: none; }
+        .pm-preview strong { color: #202223; }
+
+        .pm-banner { padding: 12px 20px; background: #e4f3df; border: 1px solid #b4dfa7; border-radius: 6px; margin: 0 20px 16px; font-size: 13px; color: #1a7e3d; display: none; }
+
+        @media (max-width: 600px) {
+            .pm-field { flex-direction: column; gap: 4px; }
+            .pm-field-label { width: 100%; padding-top: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="pm-page">
+        <div class="pm-page-header">
+            <h1>🔗 UTM Campaign URL Builder</h1>
+            <p>Generate tagged URLs to track campaign performance across GA4, Meta, and TikTok.</p>
+        </div>
+
+        <div class="pm-card">
+            <div class="pm-card-header">
+                <h2>Campaign Parameters</h2>
+            </div>
+            <div class="pm-card-body">
+                <div class="pm-field">
+                    <div class="pm-field-label">
+                        <label for="utm-url">Website URL <span class="pm-req">*</span></label>
+                        <span class="pm-hint">Full page URL to tag</span>
+                    </div>
+                    <div class="pm-field-input">
+                        <input type="url" id="utm-url" class="pm-input" placeholder="https://yourstore.myshopify.com/products/item" />
+                    </div>
+                </div>
+                <div class="pm-field">
+                    <div class="pm-field-label">
+                        <label for="utm-source">Source <span class="pm-req">*</span></label>
+                        <span class="pm-hint">Where traffic comes from</span>
+                    </div>
+                    <div class="pm-field-input">
+                        <input type="text" id="utm-source" class="pm-input" list="dl-source" placeholder="google" />
+                        <datalist id="dl-source">
+                            <option value="google"><option value="facebook"><option value="instagram"><option value="tiktok">
+                            <option value="twitter"><option value="linkedin"><option value="youtube"><option value="email">
+                            <option value="newsletter"><option value="bing"><option value="pinterest"><option value="snapchat">
+                        </datalist>
+                    </div>
+                </div>
+                <div class="pm-field">
+                    <div class="pm-field-label">
+                        <label for="utm-medium">Medium <span class="pm-req">*</span></label>
+                        <span class="pm-hint">Marketing channel type</span>
+                    </div>
+                    <div class="pm-field-input">
+                        <input type="text" id="utm-medium" class="pm-input" list="dl-medium" placeholder="cpc" />
+                        <datalist id="dl-medium">
+                            <option value="cpc"><option value="cpm"><option value="email"><option value="social">
+                            <option value="organic"><option value="referral"><option value="display"><option value="banner">
+                            <option value="retargeting"><option value="affiliate"><option value="video"><option value="push">
+                        </datalist>
+                    </div>
+                </div>
+                <div class="pm-field">
+                    <div class="pm-field-label">
+                        <label for="utm-campaign">Campaign <span class="pm-req">*</span></label>
+                        <span class="pm-hint">Campaign name or ID</span>
+                    </div>
+                    <div class="pm-field-input">
+                        <input type="text" id="utm-campaign" class="pm-input" placeholder="spring_sale_2024" />
+                    </div>
+                </div>
+                <div class="pm-field">
+                    <div class="pm-field-label">
+                        <label for="utm-term">Term</label>
+                        <span class="pm-hint">Optional — paid keyword</span>
+                    </div>
+                    <div class="pm-field-input">
+                        <input type="text" id="utm-term" class="pm-input" placeholder="running+shoes" />
+                    </div>
+                </div>
+                <div class="pm-field">
+                    <div class="pm-field-label">
+                        <label for="utm-content">Content</label>
+                        <span class="pm-hint">Optional — ad variant</span>
+                    </div>
+                    <div class="pm-field-input">
+                        <input type="text" id="utm-content" class="pm-input" placeholder="blue_banner_v2" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="pm-preview" id="utm-preview"></div>
+
+            <div class="pm-actions">
+                <button class="pm-btn pm-btn--primary" id="btn-generate">Generate URL</button>
+                <button class="pm-btn pm-btn--secondary" id="btn-clear">Clear</button>
+            </div>
+
+            <div class="pm-banner" id="utm-copied">✓ Copied to clipboard!</div>
+
+            <div class="pm-result" id="utm-result">
+                <span class="pm-result-label">Generated Campaign URL</span>
+                <div class="pm-result-row">
+                    <input type="text" id="utm-output" class="pm-input pm-input--readonly" readonly />
+                    <button class="pm-btn pm-btn--secondary pm-btn--sm" id="btn-copy">Copy</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="pm-card" style="padding:16px 20px;">
+            <h3 style="font-size:13px;font-weight:600;margin:0 0 8px;">Quick Reference</h3>
+            <table style="width:100%;font-size:12px;color:#6d7175;border-collapse:collapse;">
+                <tr><td style="padding:4px 0;font-weight:500;color:#202223;width:100px;">utm_source</td><td>Where: google, facebook, newsletter</td></tr>
+                <tr><td style="padding:4px 0;font-weight:500;color:#202223;">utm_medium</td><td>How: cpc, email, social, banner</td></tr>
+                <tr><td style="padding:4px 0;font-weight:500;color:#202223;">utm_campaign</td><td>What: spring_sale, brand_2024</td></tr>
+                <tr><td style="padding:4px 0;font-weight:500;color:#202223;">utm_term</td><td>Keyword: running+shoes (paid search)</td></tr>
+                <tr><td style="padding:4px 0;font-weight:500;color:#202223;">utm_content</td><td>Which ad: banner_v2, cta_signup</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+        var fields = ['url','source','medium','campaign','term','content'];
+
+        // Live preview
+        fields.forEach(function(f) {
+            document.getElementById('utm-' + f).addEventListener('input', updatePreview);
+        });
+
+        function updatePreview() {
+            var url = document.getElementById('utm-url').value.trim();
+            var source = document.getElementById('utm-source').value.trim();
+            var medium = document.getElementById('utm-medium').value.trim();
+            var campaign = document.getElementById('utm-campaign').value.trim();
+            if (!url && !source && !medium && !campaign) {
+                document.getElementById('utm-preview').style.display = 'none';
+                return;
+            }
+            var parts = [];
+            if (source) parts.push('<strong>utm_source</strong>=' + esc(source));
+            if (medium) parts.push('<strong>utm_medium</strong>=' + esc(medium));
+            if (campaign) parts.push('<strong>utm_campaign</strong>=' + esc(campaign));
+            var term = document.getElementById('utm-term').value.trim();
+            var content = document.getElementById('utm-content').value.trim();
+            if (term) parts.push('<strong>utm_term</strong>=' + esc(term));
+            if (content) parts.push('<strong>utm_content</strong>=' + esc(content));
+            var preview = document.getElementById('utm-preview');
+            preview.innerHTML = (url || 'https://...') + '?' + parts.join('&');
+            preview.style.display = 'block';
+        }
+
+        function esc(s) { var d = document.createElement('span'); d.textContent = s; return d.innerHTML; }
+
+        // Generate
+        document.getElementById('btn-generate').addEventListener('click', function() {
+            var url = document.getElementById('utm-url').value.trim();
+            var source = document.getElementById('utm-source').value.trim();
+            var medium = document.getElementById('utm-medium').value.trim();
+            var campaign = document.getElementById('utm-campaign').value.trim();
+
+            if (!url) { alert('Please enter a Website URL'); document.getElementById('utm-url').focus(); return; }
+            if (!source) { alert('Please enter a Source'); document.getElementById('utm-source').focus(); return; }
+            if (!medium) { alert('Please enter a Medium'); document.getElementById('utm-medium').focus(); return; }
+            if (!campaign) { alert('Please enter a Campaign name'); document.getElementById('utm-campaign').focus(); return; }
+
+            if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+            var params = [];
+            params.push('utm_source=' + encodeURIComponent(source));
+            params.push('utm_medium=' + encodeURIComponent(medium));
+            params.push('utm_campaign=' + encodeURIComponent(campaign));
+            var term = document.getElementById('utm-term').value.trim();
+            var content = document.getElementById('utm-content').value.trim();
+            if (term) params.push('utm_term=' + encodeURIComponent(term));
+            if (content) params.push('utm_content=' + encodeURIComponent(content));
+
+            var sep = url.indexOf('?') !== -1 ? '&' : '?';
+            var result = url + sep + params.join('&');
+
+            document.getElementById('utm-output').value = result;
+            document.getElementById('utm-result').style.display = 'block';
+        });
+
+        // Copy
+        document.getElementById('btn-copy').addEventListener('click', function() {
+            var el = document.getElementById('utm-output');
+            if (!el.value) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(el.value);
+            } else {
+                el.select(); document.execCommand('copy');
+            }
+            var banner = document.getElementById('utm-copied');
+            banner.style.display = 'block';
+            setTimeout(function() { banner.style.display = 'none'; }, 2000);
+        });
+
+        // Clear
+        document.getElementById('btn-clear').addEventListener('click', function() {
+            fields.forEach(function(f) { document.getElementById('utm-' + f).value = ''; });
+            document.getElementById('utm-result').style.display = 'none';
+            document.getElementById('utm-preview').style.display = 'none';
+            document.getElementById('utm-url').focus();
+        });
+    })();
+    </script>
+</body>
+</html>

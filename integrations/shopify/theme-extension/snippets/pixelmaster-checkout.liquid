@@ -1,0 +1,50 @@
+{% comment %}
+  PixelMaster sGTM — Checkout Snippet (for manual thank_you.liquid insertion)
+  Multi-platform: GA4 + Meta + TikTok purchase events
+  
+  Usage in checkout/thank_you.liquid or additional checkout script:
+    {% render 'pixelmaster-checkout' %}
+{% endcomment %}
+
+{% assign pm_url = shop.metafields.pixelmaster.transport_url | default: '' %}
+{% assign pm_meta = shop.metafields.pixelmaster.meta_pixel_id | default: '' %}
+{% assign pm_tiktok = shop.metafields.pixelmaster.tiktok_pixel_id | default: '' %}
+
+{% if pm_url != blank and checkout and checkout.order %}
+<script>
+(function(){
+  function pmPurchase(){
+    if(!window.PixelMaster||!window.PixelMaster.ecommerce)return setTimeout(pmPurchase,200);
+    var items=[];
+    {% for li in checkout.order.line_items %}
+    items.push({item_id:{{ li.sku | default: li.product_id | json }},item_name:{{ li.title | json }},price:{{ li.original_price | money_without_currency | remove:',' }},quantity:{{ li.quantity }},item_brand:{{ li.vendor | json }}});
+    {% endfor %}
+    var txn={id:{{ checkout.order.order_number | json }},value:{{ checkout.order.total_price | money_without_currency | remove:',' }},tax:{{ checkout.order.tax_price | money_without_currency | remove:',' }},shipping:{{ checkout.order.shipping_price | money_without_currency | remove:',' }},currency:{{ checkout.order.currency | json }},coupon:{{ checkout.order.discount_applications.first.title | default:'' | json }},items:items};
+    PixelMaster.ecommerce.purchase(txn);
+    window.dataLayer=window.dataLayer||[];
+    dataLayer.push({event:'purchase',ecommerce:{transaction_id:txn.id,value:txn.value,tax:txn.tax,shipping:txn.shipping,currency:txn.currency,coupon:txn.coupon,items:items}});
+    {% if pm_meta != blank %}if(typeof fbq==='function'){fbq('track','Purchase',{content_ids:items.map(function(i){return i.item_id;}),content_type:'product',value:txn.value,currency:txn.currency,num_items:items.length});}{% endif %}
+    {% if pm_tiktok != blank %}if(typeof ttq!=='undefined'){ttq.track('CompletePayment',{content_id:txn.id,content_type:'product',value:txn.value,currency:txn.currency});}{% endif %}
+    {% if checkout.order.customer %}PixelMaster.identify({{ checkout.order.customer.id | json }},{email:{{ checkout.order.email | json }},firstName:{{ checkout.order.billing_address.first_name | json }},lastName:{{ checkout.order.billing_address.last_name | json }}});{% endif %}
+  }
+  pmPurchase();
+})();
+</script>
+
+{% elsif pm_url != blank and checkout %}
+<script>
+(function(){
+  function pmCheckout(){
+    if(!window.PixelMaster||!window.PixelMaster.ecommerce)return setTimeout(pmCheckout,200);
+    var items=[];
+    {% for li in checkout.line_items %}items.push({item_id:{{ li.sku | default: li.product_id | json }},item_name:{{ li.title | json }},price:{{ li.original_price | money_without_currency | remove:',' }},quantity:{{ li.quantity }}});{% endfor %}
+    var total={{ checkout.total_price | money_without_currency | remove:',' }},curr={{ shop.currency | json }};
+    PixelMaster.ecommerce.beginCheckout(items,total,curr);
+    dataLayer.push({event:'begin_checkout',ecommerce:{currency:curr,value:total,items:items}});
+    {% if pm_meta != blank %}if(typeof fbq==='function'){fbq('track','InitiateCheckout',{value:total,currency:curr});}{% endif %}
+    {% if pm_tiktok != blank %}if(typeof ttq!=='undefined'){ttq.track('InitiateCheckout',{value:total,currency:curr});}{% endif %}
+  }
+  pmCheckout();
+})();
+</script>
+{% endif %}

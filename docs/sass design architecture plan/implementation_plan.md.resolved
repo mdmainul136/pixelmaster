@@ -1,0 +1,403 @@
+# Full System Architecture — Multi-Tenant Platform
+
+## System Overview
+
+```mermaid
+graph TB
+    subgraph "Frontend — Next.js Dashboard"
+        FE_ONBOARD[Onboarding Wizard]
+        FE_DASH[Tenant Dashboard]
+        FE_MOD[Module Pages x62]
+        FE_PLATFORM[Platform Admin]
+    end
+
+    subgraph "API Layer — Laravel"
+        MW[Middleware Stack]
+        CTRL[29 API Controllers]
+        SVC[23 Services]
+    end
+
+    subgraph "Module System — 40 Modules"
+        MOD_CORE["Core: Ecommerce, POS, CRM, Finance, Inventory, HRM"]
+        MOD_GROWTH["Growth: Marketing, Loyalty, WhatsApp, Marketplace, FlashSales"]
+        MOD_ENT["Enterprise: Manufacturing, Branches, Tracking, IOR"]
+        MOD_REGIONAL["Regional: Zatca, Maroof, Sadad, NationalAddress"]
+        MOD_VERTICAL["Vertical: Restaurant, Salon, Healthcare, Fitness, RealEstate, LMS, Education, Travel, Automotive, Events, Freelancer, Landlord"]
+    end
+
+    subgraph "Database Layer"
+        DB_MASTER[(tenant_master)]
+        DB_R1[(region_mena)]
+        DB_R2[(region_europe)]
+        DB_R3[(region_south_asia)]
+        DB_R4[(region_americas)]
+        DB_R5[(region_global)]
+    end
+
+    FE_ONBOARD --> MW
+    FE_DASH --> MW
+    FE_MOD --> MW
+    FE_PLATFORM --> MW
+    MW --> CTRL --> SVC
+    SVC --> MOD_CORE
+    SVC --> MOD_GROWTH
+    SVC --> DB_MASTER
+    SVC --> DB_R1
+    SVC --> DB_R2
+    SVC --> DB_R3
+    SVC --> DB_R4
+    SVC --> DB_R5
+```
+
+---
+
+## 1. Infrastructure Layer
+
+### Database Architecture
+
+```mermaid
+graph LR
+    subgraph "Master DB — tenant_master"
+        T[tenants]
+        TM[tenant_modules]
+        TD[tenant_domains]
+        M[modules]
+        P[payments]
+        I[invoices]
+        PM[payment_methods]
+        SA[super_admins]
+        SP[subscription_plans]
+        TS[tenant_subscriptions]
+        TW[tenant_wallets]
+        TDP[tenant_database_plans]
+        TDS[tenant_database_stats]
+        AL[audit_logs]
+        THM[themes]
+        DO[domain_orders]
+    end
+
+    subgraph "Tenant DB — tenant_{id}"
+        U[users + roles + permissions]
+        BS[business_settings]
+        ECOM["products, orders, categories, coupons, reviews"]
+        FIN["accounts, transactions, journals"]
+        INV["warehouses, stock_movements, transfers"]
+        HR["employees, attendance, payroll, leaves"]
+        PS["pos_sessions, pos_orders, cash_drawer"]
+        CRM_T["customers, tickets, segments"]
+        MKT["campaigns, broadcasts, templates"]
+        TRACK["tracking_events, consent_records"]
+    end
+
+    T -->|"db_host + db_port + db_region"| DB_SERVER["Regional MySQL Server"]
+    DB_SERVER --> ECOM
+```
+
+| Database | Purpose | Migrations |
+|----------|---------|------------|
+| `tenant_master` | Central registry, billing, modules, domains | 57 master migrations |
+| `tenant_{id}` | Per-tenant isolated data | 76 tenant migrations |
+| `region_mena` | Server group for Saudi, UAE, Kuwait, etc. | Hosts tenant_* DBs |
+| `region_europe` | Server group for UK, Germany, France, etc. | Hosts tenant_* DBs |
+| `region_south_asia` | Server group for Bangladesh, India, Pakistan | Hosts tenant_* DBs |
+| `region_americas` | Server group for USA, Canada, Brazil | Hosts tenant_* DBs |
+| `region_global` | Fallback for all other countries | Hosts tenant_* DBs |
+
+---
+
+## 2. Backend Core — Laravel
+
+### Request Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant CORS as DynamicCors
+    participant Auth as AuthenticateToken
+    participant Tenant as IdentifyTenant
+    participant Module as CheckModuleAccess
+    participant Ctrl as Controller
+    participant Svc as Service
+    participant DB as Database
+
+    Client->>CORS: API Request
+    CORS->>Auth: Token validation
+    Auth->>Tenant: Resolve tenant (header/subdomain)
+    Tenant->>Tenant: switchToTenantDatabase()
+    Tenant->>Module: Check module subscription
+    Module->>Ctrl: Route to controller
+    Ctrl->>Svc: Business logic
+    Svc->>DB: Query tenant DB
+    DB-->>Client: JSON Response
+```
+
+### Services (23)
+
+| Category | Service | Purpose |
+|----------|---------|---------|
+| **Core** | [TenantService](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/TenantService.php#10-169) | Create, provision, cleanup tenants |
+| **Core** | [DatabaseManager](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/DatabaseManager.php#9-314) | Create DBs, run migrations, switch connections |
+| **Core** | [RegionDatabaseRouter](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/RegionDatabaseRouter.php#16-90) | Route tenants to regional DB servers |
+| **Core** | [ModuleService](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/ModuleService.php#12-305) | Subscribe/unsubscribe modules with migrations |
+| **Core** | [ModuleMigrationManager](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/ModuleMigrationManager.php#9-291) | Run module-specific migrations per tenant |
+| **Auth** | `TwoFactorAuthService` | 2FA TOTP verification |
+| **Billing** | `PaymentGatewayService` | Payment processing routing |
+| **Billing** | `SaaSWalletService` | Platform wallet operations |
+| **Billing** | `SSLCommerzService` | SSLCommerz gateway integration |
+| **Billing** | `BillingEnforcementService` | Enforce billing limits |
+| **Domain** | `DomainService` | Domain management lifecycle |
+| **Domain** | `DomainRegistrationService` | Register domains via Namecheap |
+| **Domain** | `DomainSearchService` | Search available domains |
+| **Domain** | `DnsVerificationService` | Verify DNS records |
+| **Domain** | `NamecheapService` | Namecheap API integration |
+| **AI** | `AiBrainManager` | AI assistant configuration |
+| **DB Ops** | [TenantDatabaseIsolationService](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/TenantDatabaseIsolationService.php#11-179) | Isolated MySQL users per tenant |
+| **DB Ops** | `TenantDatabaseAnalyticsService` | DB size/performance monitoring |
+| **DB Ops** | `TenantBackupService` | Backup tenant databases |
+| **Feature** | `FeatureFlagService` | Feature flag toggles |
+| **Feature** | `LoyaltyService` | Loyalty points engine |
+| **Feature** | `WhatsAppService` | WhatsApp API integration |
+| **Feature** | `ActivityLogService` | Audit trail logging |
+
+### Middleware Stack (13)
+
+| Middleware | Purpose |
+|-----------|---------|
+| `DynamicCors` | Tenant-aware CORS headers |
+| [AuthenticateToken](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Middleware/AuthenticateToken.php#9-86) | JWT/session token validation |
+| [IdentifyTenant](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Middleware/IdentifyTenant.php#13-196) | Resolve tenant from header/subdomain, switch DB |
+| `IdentifyTenantByUrl` | Resolve tenant from URL pattern |
+| `CheckModuleAccess` | Verify tenant has active module subscription |
+| `RequireModuleAccess` | Strict module gate |
+| `RequirePermission` | RBAC permission check |
+| `RequireRole` | Role-based access check |
+| `AuthorizeTenantPermission` | Tenant-level permission check |
+| `Enforce2FA` | Require 2FA verification |
+| `EnforceDatabaseQuota` | Check DB size limits |
+| `EnforceAdvancedQuota` | Check advanced feature quotas |
+| `LogStaffActivity` | Audit staff actions |
+
+---
+
+## 3. Module System — 40 Modules
+
+```mermaid
+graph TB
+    subgraph "Module Lifecycle"
+        REG["Register Module<br/>(modules table)"]
+        SUB["Subscribe Tenant<br/>(tenant_modules)"]
+        MIG["Run Module Migrations<br/>(on tenant DB)"]
+        ACT["Activate & Serve<br/>(CheckModuleAccess)"]
+        REN["Renew / Expire<br/>(cron check)"]
+    end
+
+    REG --> SUB --> MIG --> ACT --> REN
+    REN -->|expired| SUB
+```
+
+### Module Categories
+
+| Category | Modules | Status |
+|----------|---------|--------|
+| **eCommerce Core** | Ecommerce (Products, Orders, Categories, Coupons, Cart, Shipping, Reviews) | ✅ Full |
+| **Commerce Growth** | POS, CRM, WhatsApp, Marketplace, FlashSales, Marketing | ✅ Full |
+| **Enterprise** | Finance, Inventory, HRM, Manufacturing, Branches, Tracking, IOR | ✅ Full |
+| **Saudi Services** | Zatca, Maroof, NationalAddress, Sadad | ✅ Built |
+| **Compliance** | Security, Analytics, Pages, SeoManager, Reviews | ✅ Built |
+| **Verticals** | Restaurant, Salon, Healthcare, Fitness, RealEstate, LMS, Education, Travel, Automotive, Events, Freelancer, Landlord | 📦 Scaffold |
+| **Platform** | AppMarketplace, Contracts, Expenses | 📦 Scaffold |
+
+---
+
+## 4. API Layer — 29 Controllers
+
+| Controller | Routes | Purpose |
+|-----------|--------|---------|
+| [TenantController](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/TenantController.php#9-213) | Register, status, availability | Tenant lifecycle |
+| `AuthController` | Login, register, logout, me | Authentication |
+| `SuperAdminAuthController` | Platform admin auth | Super admin access |
+| [SuperAdminController](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/SuperAdminController.php#12-166) | Manage all tenants | Platform operations |
+| `CentralDashboardController` | Stats, analytics, graphs | Dashboard data |
+| `ModuleManagementController` | List, detail, pricing | Module catalog |
+| [ModuleSubscriptionController](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/ModuleSubscriptionController.php#18-277) | Subscribe, unsubscribe, renew | Module billing |
+| `PaymentController` | Process, verify, webhook | Payment processing |
+| `PaymentMethodController` | CRUD payment methods | Payment setup |
+| `PaymentHistoryController` | Transaction history | Billing records |
+| `InvoiceController` | Generate, PDF, email | Invoice management |
+| [SubscriptionController](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/ModuleSubscriptionController.php#18-277) | Plans, upgrade, downgrade | SaaS subscriptions |
+| `SubscriptionPlanController` | CRUD subscription plans | Plan management |
+| `DomainController` | Manage custom domains | Domain settings |
+| `DomainStoreController` | Purchase domains | Domain marketplace |
+| `TenantDatabaseController` | DB stats, plans, analytics | Database monitoring |
+| `PosController` | POS sessions, orders | Point of sale |
+| `LoyaltyController` | Points, rewards, tiers | Loyalty program |
+| `FlashSaleController` | Flash sales CRUD | Promotions |
+| `StockTransferController` | Inter-warehouse transfers | Inventory |
+| `BranchController` | Multi-branch management | Branch ops |
+| `UserController` | Staff CRUD, roles | User management |
+| `AiController` | AI assistant config | AI features |
+| `ThemeController` | Theme management | Storefront |
+| `AdminThemeController` | Admin theme CRUD | Theme admin |
+| `DeveloperThemeController` | Developer theme API | Theme SDK |
+| `StorefrontConfigController` | Storefront settings | Config |
+| `MiddleEastPaymentController` | Tamara, Tabby, COD | Regional payments |
+| `SSLCommerzController` | SSLCommerz integration | Bangladesh payments |
+| [RegionStatsController](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/RegionStatsController.php#11-133) | Region health, tenant listing | Regional isolation |
+
+---
+
+## 5. Frontend — Next.js Dashboard
+
+### Page Structure (62 routes)
+
+```mermaid
+graph TB
+    subgraph "Public"
+        ON["/onboarding — 6-step wizard"]
+        AUTH["/auth — Login/Register"]
+    end
+
+    subgraph "Tenant Dashboard"
+        DASH["/page.tsx — Main Dashboard"]
+        ECOM["/ecommerce/* — Products, Orders, Categories"]
+        POS_P["/pos — Point of Sale"]
+        CRM_P["/crm — Customer Management"]
+        INV_P["/inventory/* — Stock, Warehouses"]
+        FIN_P["/finance/* — Accounting"]
+        HRM_P["/hrm — Human Resources"]
+        MKT_P["/marketing — Campaigns"]
+        TRACK_P["/tracking/* — Analytics Events"]
+        IOR_P["/ior/* — Cross-Border Import"]
+    end
+
+    subgraph "Platform Admin"
+        PA["/platform-dashboard — Admin Overview"]
+        REGIONS["/platform-dashboard/regions — Regional Infrastructure"]
+        MULTI["/multi-tenant — Tenant Management"]
+        APPSTORE["/app-marketplace — Module Store"]
+    end
+
+    subgraph "Settings"
+        SET["/settings/* — Profile, Billing, Domain"]
+    end
+```
+
+### Key Frontend Files
+
+| File | Purpose |
+|------|---------|
+| [lib/api.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/lib/api.ts) | Axios base instance with tenant header |
+| [lib/tenantApi.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/lib/tenantApi.ts) | Register, status, availability API |
+| [lib/moduleApi.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/lib/moduleApi.ts) | Module subscription API |
+| [lib/billingApi.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/lib/billingApi.ts) | Invoice, payment API |
+| [hooks/useMerchantRegion.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/hooks/useMerchantRegion.ts) | Global state (country, region, modules) |
+| [hooks/useDashboardData.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/hooks/useDashboardData.ts) | Dashboard stats fetcher |
+| [hooks/useModuleData.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/hooks/useModuleData.ts) | Module subscription state |
+| [data/regionModules.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/data/regionModules.ts) | Region configs, module pricing |
+| [data/businessPurposeModules.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/data/businessPurposeModules.ts) | Purpose → module mapping |
+| [data/purposeThemes.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/data/purposeThemes.ts) | Purpose-specific UI themes |
+
+### Component Groups (13)
+
+| Group | Components | Purpose |
+|-------|-----------|---------|
+| `onboarding/` | 18 components | Multi-step wizard |
+| [dashboard/](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/SuperAdminController.php#14-34) | 13 components | Dashboard widgets |
+| `layout/` | 30 components | Sidebar, header, nav |
+| `ui/` | 49 components | ShadCN UI primitives |
+| `ior/` | 16 components | Cross-border module |
+| `sales-channels/` | 22 components | Online/offline channels |
+| `storefront/` | 10 components | Theme/storefront config |
+| [pos/](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/components/onboarding/business-purpose/PurposeCard.tsx#16-112) | 3 components | POS terminal |
+| `restaurant/` | 2 components | Restaurant features |
+| `saudi/` | 3 components | Saudi-specific widgets |
+| `lms/` | 5 components | Learning management |
+| `analytics/` | 3 components | Charts/graphs |
+| `marketing/` | 1 component | Campaign tools |
+
+---
+
+## 6. Regional Database Isolation
+
+```mermaid
+graph LR
+    subgraph "Registration Flow"
+        REG_FE["Frontend: User selects country"]
+        REG_API["POST /api/tenants/register"]
+        ROUTER["RegionDatabaseRouter"]
+        CREATE["TenantService.createTenant()"]
+        SAVE["Save db_host, db_port, db_region"]
+        PROVISION["ProvisionTenantJob"]
+    end
+
+    REG_FE --> REG_API --> ROUTER
+    ROUTER -->|"getServerConfig(country)"| CREATE
+    CREATE --> SAVE --> PROVISION
+
+    subgraph "Connection Flow"
+        REQ["Any tenant API request"]
+        MW_ID["IdentifyTenant middleware"]
+        DB_SW["DatabaseManager.switchToTenantDatabase()"]
+        READ_HOST["Read tenant.db_host + db_port"]
+    end
+
+    REQ --> MW_ID --> DB_SW --> READ_HOST
+    READ_HOST -->|"127.0.0.1:3306"| REGIONAL["Regional MySQL Server"]
+```
+
+### Country → Region Mapping
+
+| Region | Countries | .env Config |
+|--------|-----------|-------------|
+| `mena` | 🇸🇦 Saudi Arabia, 🇦🇪 UAE, 🇰🇼 Kuwait, 🇧🇭 Bahrain, 🇶🇦 Qatar, 🇴🇲 Oman, 🇪🇬 Egypt, 🇯🇴 Jordan | `REGION_MENA_DB_HOST` |
+| `europe` | 🇬🇧 UK, 🇩🇪 Germany, 🇫🇷 France, 🇹🇷 Turkey, 🇪🇸 Spain, 🇮🇹 Italy, 🇳🇱 Netherlands, 🇸🇪 Sweden | `REGION_EUROPE_DB_HOST` |
+| `south_asia` | 🇧🇩 Bangladesh, 🇮🇳 India, 🇵🇰 Pakistan, 🇱🇰 Sri Lanka, 🇳🇵 Nepal | `REGION_SOUTH_ASIA_DB_HOST` |
+| `americas` | 🇺🇸 USA, 🇨🇦 Canada, 🇧🇷 Brazil, 🇲🇽 Mexico | `REGION_AMERICAS_DB_HOST` |
+| `global` | 🇦🇺 Australia, 🇯🇵 Japan, 🇳🇬 Nigeria, 🇰🇪 Kenya + fallback | `REGION_GLOBAL_DB_HOST` |
+
+---
+
+## Frontend Implementation Plan
+
+### New: Region Dashboard Page (Completed ✅)
+
+The `/platform-dashboard/regions` page has been implemented to visualize tenant distribution across regional server groups.
+
+#### [BUILT] [regions/page.tsx](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/app/platform-dashboard/regions/page.tsx)
+
+Features:
+1. **Region Cards** — 5 interactive cards showing region name, flag, server host/port, and real-time tenant counts.
+2. **Infrastructure Health** — Real-time server group connectivity visualization.
+3. **Tenant Explorer** — Filterable table for tenants within a specific regional node.
+4. **Country Mapping** — Highlighting geographical routing rules.
+5. **Drill-down UI** — Dynamic selection of regions for detailed inspection.
+
+#### [BUILT] [useRegionData.ts](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/dashboard-main/src/hooks/useRegionData.ts)
+
+React hook for fetching and managing regional distribution state.
+
+#### [BUILT] [RegionStatsController](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Http/Controllers/Api/RegionStatsController.php)
+
+Production API for infrastructure status:
+- `GET /api/regions/stats` — Per-region health and tenant metrics.
+- `GET /api/regions/{region}/tenants` — Detailed list of tenants per node.
+
+### API Integration (Completed ✅)
+
+#### [UPDATED] [api.php](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/routes/api.php)
+
+Routes registered:
+```php
+Route::prefix('regions')->group(function () {
+    Route::get('/stats', [RegionStatsController::class, 'stats']);
+    Route::get('/{region}/tenants', [RegionStatsController::class, 'tenants']);
+});
+```
+
+## Verification Status
+
+### Automated & Manual Verification (Passed ✅)
+- [x] Regional DB Creation: Verified MENA, Europe, South Asia, Americas, Global instances.
+- [x] Routing Logic: Verified Bangladesh → South Asia, Saudi → MENA, unknown → Global.
+- [x] Dashboard Visualization: Verified real-time stats and tenant filtering.
+- [x] Connection Management: Verified [DatabaseManager](file:///e:/Mern%20Stact%20Dev/multi-tenant-mern/multi-tenant-laravel/app/Services/DatabaseManager.php#9-314) correctly handles multi-server routing.
