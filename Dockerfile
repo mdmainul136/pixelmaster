@@ -1,18 +1,50 @@
 # ── Stage 1: Runtime Base ──────────────────────────────────────────────────────
 FROM php:8.3-fpm-alpine AS base
 
-# Install Essential Dependencies (Optimized)
+# Install System Dependencies & PHP Extensions (Single Layer Optimization)
 RUN apk add --no-cache \
-    libpng-dev libzip-dev oniguruma-dev libxml2-dev icu-dev redis nodejs npm \
-    git unzip zip curl libwebp-dev libjpeg-turbo-dev freetype-dev \
-    librdkafka-dev build-base autoconf bash gmp-dev
-
-# Install PHP Extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    libpng-dev \
+    libzip-dev \
+    oniguruma-dev \
+    libxml2-dev \
+    icu-dev \
+    redis \
+    nodejs \
+    npm \
+    git \
+    unzip \
+    zip \
+    curl \
+    libwebp-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    librdkafka-dev \
+    build-base \
+    autoconf \
+    bash \
+    gmp-dev \
+    libpng \
+    libjpeg-turbo \
+    freetype \
+    libwebp \
+    && docker-php-ext-configure gd \
+        --with-freetype=/usr/include/ \
+        --with-jpeg=/usr/include/ \
+        --with-webp=/usr/include/ \
     && docker-php-ext-install \
-    pdo_mysql mbstring exif pcntl bcmath gd zip intl opcache sockets gmp
+        pdo_mysql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+        intl \
+        opcache \
+        sockets \
+        gmp
 
-# Install RdKafka
+# Install Kafka support (RdKafka)
 RUN pecl install rdkafka && docker-php-ext-enable rdkafka
 
 WORKDIR /var/www
@@ -36,10 +68,10 @@ RUN npm install --no-audit
 COPY . /var/www/
 RUN npm run build
 
-# Final Autoloader
+# Final Autoloader optimization
 RUN composer dump-autoload --optimize --no-dev
 
-# ── Stage 3: Runner ───────────────────────────────────────────────────────────
+# ── Stage 3: Final Runner ─────────────────────────────────────────────────────
 FROM base AS runner
 RUN addgroup -g 1000 -S app && adduser -u 1000 -S app -G app
 COPY --from=build --chown=app:app /var/www /var/www
