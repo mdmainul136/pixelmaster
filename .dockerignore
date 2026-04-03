@@ -55,8 +55,7 @@ Thumbs.db
 *.md
 docs/
 
-# Docker files themselves (already in context at root level — no need to copy into image)
-docker/
+# Docker files themselves
 docker-compose*.yml
 Dockerfile*
 
