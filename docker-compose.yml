@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # ── 1. Laravel PHP-FPM Application ──────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: coolify_app
+    restart: always
+    env_file: .env
+    volumes:
+      - ./storage:/var/www/storage
+      - ./bootstrap/cache:/var/www/bootstrap/cache
+    networks:
+      - coolify_network
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── 2. Nginx (Laravel Web Server) ───────────────────────────────────────────
+  web:
+    image: nginx:alpine
+    container_name: coolify_web
+    restart: always
+    volumes:
+      - ./public:/var/www/public
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - coolify_network
+    depends_on:
+      - app
+
+  # ── 3. Database (MySQL 8) ───────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: coolify_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-tenant_master}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - coolify_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    networks:
+      - coolify_network
+
+  # ── 4. Cache & Queues (Redis) ───────────────────────────────────────────────
+  redis:
+    image: redis:alpine
+    container_name: coolify_redis
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secret}
+    volumes:
+      - coolify_redis_data:/data
+    networks:
+      - coolify_network
+
+  # ── 5. Worker (Background Jobs) ─────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: coolify_worker
+    restart: always
+    command: php artisan queue:work --tries=3
+    env_file: .env
+    depends_on:
+      - db
+      - redis
+    networks:
+      - coolify_network
+
+networks:
+  coolify_network:
+    external: false
+
+volumes:
+  coolify_db_data:
+  coolify_redis_data:
