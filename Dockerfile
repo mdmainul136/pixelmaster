@@ -52,7 +52,10 @@ COPY . /var/www/
 # Copy Vite built assets from frontend stage
 COPY --from=frontend /build/public/build /var/www/public/build
 
-RUN composer dump-autoload --optimize --no-dev
+# Create minimal .env for artisan package:discover (triggered by post-autoload-dump)
+RUN cp .env.example .env && \
+    php artisan key:generate --force && \
+    composer dump-autoload --optimize --no-dev
 
 # ── Stage 3: Runner ───────────────────────────────────────────────────────────
 FROM base AS runner
