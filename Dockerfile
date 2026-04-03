@@ -28,21 +28,21 @@ RUN apk add --no-cache \
     freetype \
     libwebp \
     && docker-php-ext-configure gd \
-        --with-freetype=/usr/include/ \
-        --with-jpeg=/usr/include/ \
-        --with-webp=/usr/include/ \
+    --with-freetype=/usr/include/ \
+    --with-jpeg=/usr/include/ \
+    --with-webp=/usr/include/ \
     && docker-php-ext-install \
-        pdo_mysql \
-        mbstring \
-        exif \
-        pcntl \
-        bcmath \
-        gd \
-        zip \
-        intl \
-        opcache \
-        sockets \
-        gmp
+    pdo_mysql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    intl \
+    opcache \
+    sockets \
+    gmp
 
 # Install Kafka support (RdKafka)
 RUN pecl install rdkafka && docker-php-ext-enable rdkafka
@@ -51,7 +51,6 @@ WORKDIR /var/www
 
 # Fallback Environment
 ENV APP_ENV=production
-ENV APP_KEY=base64:7B5qX2c6v+W0S3d5m8L1u9R4Y7J0I2K4p1O3E5A6B7N=
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
 # ── Stage 2: Build App ────────────────────────────────────────────────────────
