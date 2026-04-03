@@ -18,6 +18,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_started
 
   # ── 2. Nginx (Laravel Web Server) ───────────────────────────────────────────
   web:
@@ -62,7 +66,46 @@ services:
     networks:
       - coolify_network
 
-  # ── 5. Worker (Background Jobs) ─────────────────────────────────────────────
+  # ── 5. Analytics (ClickHouse) ──────────────────────────────────────────────
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: coolify_clickhouse
+    restart: always
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - coolify_clickhouse_data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks:
+      - coolify_network
+
+  # ── 6. Message Broker (Kafka & Zookeeper Stack) ────────────────────────────
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    container_name: coolify_zookeeper
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - coolify_network
+
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: coolify_kafka
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+    networks:
+      - coolify_network
+    depends_on:
+      - zookeeper
+
+  # ── 7. Worker (Background Jobs) ─────────────────────────────────────────────
   worker:
     build:
       context: .
@@ -75,6 +118,7 @@ services:
     depends_on:
       - db
       - redis
+      - kafka
     networks:
       - coolify_network
 
@@ -85,3 +129,4 @@ networks:
 volumes:
   coolify_db_data:
   coolify_redis_data:
+  coolify_clickhouse_data:
