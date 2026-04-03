@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Admin Panels — MySQL + Redis + ClickHouse
+# Deploy separately in Coolify as a new Docker Compose resource
+# All panels connect to the main app's internal network
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ── phpMyAdmin — MySQL Web UI ──────────────────────────────────────────────
+  phpmyadmin:
+    image: phpmyadmin:latest
+    restart: always
+    environment:
+      PMA_HOST: db-ebb4hdh4lnyztgyhyjgrgvqi-173759283758
+      PMA_PORT: 3306
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
+      UPLOAD_LIMIT: 100M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`db.${DOMAIN:-pixelmasters.io}`)"
+      - "traefik.http.routers.phpmyadmin.entrypoints=https"
+      - "traefik.http.routers.phpmyadmin.tls=true"
+      - "traefik.http.routers.phpmyadmin.tls.certresolver=letsencrypt"
+      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+    networks:
+      - coolify
+      - app_network
+
+  # ── RedisInsight — Redis Web UI ────────────────────────────────────────────
+  redisinsight:
+    image: redis/redisinsight:latest
+    restart: always
+    volumes:
+      - redisinsight_data:/data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.redisinsight.rule=Host(`redis.${DOMAIN:-pixelmasters.io}`)"
+      - "traefik.http.routers.redisinsight.entrypoints=https"
+      - "traefik.http.routers.redisinsight.tls=true"
+      - "traefik.http.routers.redisinsight.tls.certresolver=letsencrypt"
+      - "traefik.http.services.redisinsight.loadbalancer.server.port=5540"
+    networks:
+      - coolify
+      - app_network
+
+  # ── Tabix — ClickHouse Web UI ──────────────────────────────────────────────
+  tabix:
+    image: spoonest/clickhouse-tabix-web-client:stable
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tabix.rule=Host(`ch.${DOMAIN:-pixelmasters.io}`)"
+      - "traefik.http.routers.tabix.entrypoints=https"
+      - "traefik.http.routers.tabix.tls=true"
+      - "traefik.http.routers.tabix.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tabix.loadbalancer.server.port=80"
+    networks:
+      - coolify
+      - app_network
+
+networks:
+  coolify:
+    external: true
+  app_network:
+    external: true
+    name: ebb4hdh4lnyztgyhyjgrgvqi_coolify_internal
+
+volumes:
+  redisinsight_data:
