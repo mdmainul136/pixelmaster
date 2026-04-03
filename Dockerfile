@@ -1,7 +1,7 @@
 # ── Stage 1: Runtime Base ──────────────────────────────────────────────────────
 FROM php:8.3-fpm-alpine AS base
 
-# Install System Dependencies & Build Tools
+# Install Essential Dependencies & PHP Extensions (Single Layer Optimization)
 RUN apk add --no-cache \
     libpng-dev \
     libzip-dev \
@@ -23,26 +23,23 @@ RUN apk add --no-cache \
     autoconf \
     bash \
     gmp-dev \
-    zlib-dev \
-    libpng \
-    libjpeg-turbo \
-    freetype \
-    libwebp
-
-# Install PHP Extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install \
-    pdo_mysql \
-    mbstring \
-    exif \
-    pcntl \
-    bcmath \
-    gd \
-    zip \
-    intl \
-    opcache \
-    sockets \
-    gmp
+    && docker-php-ext-configure gd \
+        --enable-gd \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql \
+        mbstring \
+        exif \
+        pcntl \
+        bcmath \
+        gd \
+        zip \
+        intl \
+        opcache \
+        sockets \
+        gmp
 
 # Install Kafka support (RdKafka)
 RUN pecl install rdkafka && docker-php-ext-enable rdkafka
