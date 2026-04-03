@@ -1,26 +1,11 @@
-# ── Stage 1: PHP Dependencies (Composer) ──────────────────────────────────────
-FROM composer:latest AS composer_stage
-WORKDIR /var/www
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+# ── Stage 1: Base Image (PHP + Extensions + Node) ─────────────────────────────
+FROM php:8.3-fpm-alpine AS base
 
-# ── Stage 2: Node Dependencies & Build (Inertia/Vite) ────────────────────────
-FROM node:20-alpine AS node_stage
-WORKDIR /var/www
-COPY package.json package-lock.json* ./
-# Install without strict lock check for better compatibility on Alpine
-RUN npm install --no-audit 
-COPY . .
-RUN npm run build
-
-# ── Stage 3: Final Production Image ──────────────────────────────────────────
-FROM php:8.3-fpm-alpine AS runner
-
-# Install Runtime System Dependencies
+# Install System Dependencies, Node.js, and Build Tools
 RUN apk add --no-cache \
-    libpng-dev libzip-dev oniguruma-dev libxml2-dev icu-dev redis \
+    libpng-dev libzip-dev oniguruma-dev libxml2-dev icu-dev redis nodejs npm \
     git unzip zip curl libwebp-dev libjpeg-turbo-dev freetype-dev \
-    librdkafka-dev build-base autoconf bash
+    librdkafka-dev build-base autoconf bash python3
 
 # Install PHP Extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
@@ -31,19 +16,34 @@ RUN pecl install rdkafka && docker-php-ext-enable rdkafka
 
 WORKDIR /var/www
 
-# Create non-root user
-RUN addgroup -g 1000 -S app && adduser -u 1000 -S app -G app
+# ── Stage 2: Build App (Composer & Node) ──────────────────────────────────────
+FROM base AS build
 
-# Copy PHP dependencies from Stage 1
-COPY --from=composer_stage /var/www/vendor ./vendor
-# Copy App Source & Built Assets from Stage 2
-COPY --from=node_stage /var/www ./
-
-# Final Autoloader optimization
+# PHP Dependencies
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY ./composer.json ./composer.lock /var/www/
+# Use --ignore-platform-reqs to bypass extension check during composer install
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
+
+# Node.js Dependencies & Inertia Build
+COPY ./package.json ./package-lock.json* /var/www/
+RUN npm install --no-audit
+COPY . /var/www/
+RUN npm run build
+
+# Generate optimized autoloader
 RUN composer dump-autoload --optimize --no-dev
 
-# Permissions
+# ── Stage 3: Final Production Image ──────────────────────────────────────────
+FROM base AS runner
+
+# Security: Run as non-root
+RUN addgroup -g 1000 -S app && adduser -u 1000 -S app -G app
+
+# Copy fully built app from build stage
+COPY --from=build --chown=app:app /var/www /var/www
+
+# Permissions for Laravel
 RUN chown -R app:app /var/www/storage /var/www/bootstrap/cache \
     && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
