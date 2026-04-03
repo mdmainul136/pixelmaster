@@ -1,22 +1,31 @@
 # ── Stage 1: Runtime Base ──────────────────────────────────────────────────────
 FROM php:8.3-fpm-alpine AS base
 
+# 1a. Install system libraries & tools (no Redis server — it runs in its own container)
 RUN apk add --no-cache \
     libpng-dev libzip-dev oniguruma-dev libxml2-dev icu-dev \
-    redis nodejs npm git unzip zip curl \
+    nodejs npm git unzip zip curl bash \
     libwebp-dev libjpeg-turbo-dev freetype-dev \
-    librdkafka-dev build-base autoconf bash gmp-dev \
-    && export CFLAGS="-I/usr/include/freetype2" \
+    librdkafka-dev build-base autoconf gmp-dev \
+    linux-headers
+
+# 1b. Configure & install PHP extensions
+RUN export CFLAGS="-I/usr/include/freetype2" \
     && export CPPFLAGS="-I/usr/include/freetype2" \
     && docker-php-ext-configure gd \
-    --with-freetype \
-    --with-jpeg \
-    --with-webp \
+        --with-freetype \
+        --with-jpeg \
+        --with-webp \
     && docker-php-ext-install -j$(nproc) \
-    pdo_mysql mbstring exif pcntl bcmath gd \
-    zip intl opcache sockets gmp \
-    && pecl install rdkafka \
-    && docker-php-ext-enable rdkafka
+        pdo_mysql mbstring exif pcntl bcmath gd \
+        zip intl opcache sockets gmp
+
+# 1c. Install PECL extensions (rdkafka + redis)
+RUN pecl install rdkafka redis \
+    && docker-php-ext-enable rdkafka redis
+
+# 1d. Clean up build deps to keep image smaller
+RUN apk del build-base autoconf linux-headers
 
 WORKDIR /var/www
 ENV APP_ENV=production
@@ -30,7 +39,7 @@ COPY ./composer.json ./composer.lock /var/www/
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
 
 COPY ./package.json ./package-lock.json* /var/www/
-RUN npm install --no-audit
+RUN npm ci --no-audit
 COPY . /var/www/
 RUN npm run build
 RUN composer dump-autoload --optimize --no-dev
