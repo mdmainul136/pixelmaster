@@ -1,10 +1,20 @@
+# ── Stage 0: Node.js binary ───────────────────────────────────────────────────
+FROM node:22-alpine AS node
+
 # ── Stage 1: Runtime Base ──────────────────────────────────────────────────────
 FROM php:8.3-fpm-alpine AS base
 
-# 1a. Install system libraries & tools (no Redis server — it runs in its own container)
+# Copy Node 22 + npm from official image (matches local dev: Node 22 + npm 11)
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf /usr/local/bin/node /usr/local/bin/nodejs \
+    && ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+# 1a. Install system libraries & tools
 RUN apk add --no-cache \
     libpng-dev libzip-dev oniguruma-dev libxml2-dev icu-dev \
-    nodejs npm git unzip zip curl bash \
+    git unzip zip curl bash libstdc++ \
     libwebp-dev libjpeg-turbo-dev freetype-dev \
     librdkafka-dev build-base autoconf gmp-dev \
     linux-headers
@@ -39,7 +49,7 @@ COPY ./composer.json ./composer.lock /var/www/
 RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
 
 COPY ./package.json ./package-lock.json* /var/www/
-RUN npm ci --no-audit
+RUN npm install --no-audit
 COPY . /var/www/
 RUN npm run build
 RUN composer dump-autoload --optimize --no-dev
