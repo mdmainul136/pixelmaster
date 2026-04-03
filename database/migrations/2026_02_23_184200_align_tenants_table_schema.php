@@ -12,13 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Dynamically find all foreign keys referencing 'tenants'
+        $dbName = DB::connection()->getDatabaseName();
         $existingConstraints = DB::select("
             SELECT TABLE_NAME, CONSTRAINT_NAME, REFERENCED_COLUMN_NAME
             FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
             WHERE REFERENCED_TABLE_NAME = 'tenants' 
-              AND TABLE_SCHEMA = 'tenant_master'
+              AND TABLE_SCHEMA = ?
               AND CONSTRAINT_NAME != 'PRIMARY'
-        ");
+        ", [$dbName]);
 
         $tablesToUpdate = [];
         foreach ($existingConstraints as $ec) {
