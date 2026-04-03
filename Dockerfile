@@ -1,54 +1,48 @@
 # ── Stage 1: Runtime Base ──────────────────────────────────────────────────────
 FROM php:8.3-fpm-alpine AS base
 
-# Install System Dependencies, Node.js, and Build Tools
+# Install Essential Dependencies (Optimized)
 RUN apk add --no-cache \
     libpng-dev libzip-dev oniguruma-dev libxml2-dev icu-dev redis nodejs npm \
     git unzip zip curl libwebp-dev libjpeg-turbo-dev freetype-dev \
-    librdkafka-dev build-base autoconf bash python3 gmp-dev
+    librdkafka-dev build-base autoconf bash gmp-dev
 
 # Install PHP Extensions
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install \
     pdo_mysql mbstring exif pcntl bcmath gd zip intl opcache sockets gmp
 
-# Install Kafka support
+# Install RdKafka
 RUN pecl install rdkafka && docker-php-ext-enable rdkafka
 
 WORKDIR /var/www
 
-# Fallback Environment for Build
+# Fallback Environment
 ENV APP_ENV=production
 ENV APP_KEY=base64:7B5qX2c6v+W0S3d5m8L1u9R4Y7J0I2K4p1O3E5A6B7N=
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-# ── Stage 2: Dependencies & Asset Build ──────────────────────────────────────
+# ── Stage 2: Build App ────────────────────────────────────────────────────────
 FROM base AS build
 
-# PHP Dependencies (Using -vvv to see the real error if it fails)
+# PHP Dependencies
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 COPY ./composer.json ./composer.lock /var/www/
-RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs -vvv
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --ignore-platform-reqs
 
-# Node.js Dependencies & Inertia Build
+# Node.js Build
 COPY ./package.json ./package-lock.json* /var/www/
 RUN npm install --no-audit
 COPY . /var/www/
 RUN npm run build
 
-# Generate optimized autoloader
+# Final Autoloader
 RUN composer dump-autoload --optimize --no-dev
 
-# ── Stage 3: Final Production Image ──────────────────────────────────────────
+# ── Stage 3: Runner ───────────────────────────────────────────────────────────
 FROM base AS runner
-
-# Security: Run as non-root
 RUN addgroup -g 1000 -S app && adduser -u 1000 -S app -G app
-
-# Copy fully built app from build stage
 COPY --from=build --chown=app:app /var/www /var/www
-
-# Permissions for Laravel
 RUN chown -R app:app /var/www/storage /var/www/bootstrap/cache \
     && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
