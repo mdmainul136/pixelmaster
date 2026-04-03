@@ -60,13 +60,8 @@ docker/
 docker-compose*.yml
 Dockerfile*
 
-# Frontend source (compiled assets go into public/ via node-build stage)
-resources/js
-resources/css
-resources/sass
-vite.config.*
-# Frontend build files (must be visible during build)
+# Frontend build dependencies (must be visible for Vite build stage)
 !package.json
 !package-lock.json
-# vite.config.*
-# webpack.mix.js
+# Note: resources/js, resources/css, vite.config.* are NOT excluded
+# because the frontend Docker stage needs them to run 'npm run build'
