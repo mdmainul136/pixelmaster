@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('tracking_event_logs', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('tenant_id')->index();
+            $table->string('tenant_id')->index();
             $table->unsignedBigInteger('container_id')->index();
 
             // ── Event Identification ──────────────────────────────────────────
