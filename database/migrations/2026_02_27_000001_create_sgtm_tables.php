@@ -15,7 +15,7 @@ return new class extends Migration
         if (!Schema::hasTable('tenant_sgtm_configs')) {
             Schema::create('tenant_sgtm_configs', function (Blueprint $table) {
                 $table->id();
-                $table->unsignedBigInteger('tenant_id')->index();
+                $table->string('tenant_id')->index();
                 $table->string('container_id')->unique(); // e.g., GTM-XXXXXX
                 $table->string('api_key')->unique();
                 $table->string('custom_domain')->nullable();
@@ -31,7 +31,7 @@ return new class extends Migration
         if (!Schema::hasTable('sgtm_event_logs')) {
             Schema::create('sgtm_event_logs', function (Blueprint $table) {
                 $table->id();
-                $table->unsignedBigInteger('tenant_id')->index();
+                $table->string('tenant_id')->index();
                 $table->string('container_id')->index();
                 $table->string('event_name');
                 $table->string('event_id')->nullable()->index(); // For deduplication
