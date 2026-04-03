@@ -19,8 +19,8 @@ services:
       - CLICKHOUSE_HOST=clickhouse
       - KAFKA_BROKERS=kafka:9092
     volumes:
-      - ./storage:/var/www/storage
-      - ./bootstrap/cache:/var/www/bootstrap/cache
+      - app_storage:/var/www/storage
+      - app_bootstrap_cache:/var/www/bootstrap/cache
       - app_public_build:/var/www/public/build
     networks:
       - coolify_internal
@@ -59,9 +59,11 @@ services:
     volumes:
       - coolify_db_data:/var/lib/mysql
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      timeout: 20s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 10s
       retries: 10
+      start_period: 60s
     networks:
       - coolify_internal
 
@@ -146,3 +148,5 @@ volumes:
   redis_data:
   app_public_build:
   kafka_data:
+  app_storage:
+  app_bootstrap_cache:
