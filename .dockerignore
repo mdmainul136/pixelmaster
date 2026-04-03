@@ -65,6 +65,8 @@ resources/js
 resources/css
 resources/sass
 vite.config.*
-package.json
-package-lock.json
-webpack.mix.js
+# Frontend build files (must be visible during build)
+!package.json
+!package-lock.json
+# vite.config.*
+# webpack.mix.js
