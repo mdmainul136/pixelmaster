@@ -1,5 +1,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Admin Panels — MySQL + Redis + ClickHouse
+# Admin Panels — MySQL + Redis + ClickHouse + Metabase + Kafka
 # Deploy separately in Coolify as a new Docker Compose resource
 # All panels connect to the main app's internal network
 # ─────────────────────────────────────────────────────────────────────────────
@@ -11,21 +11,21 @@ services:
     image: phpmyadmin:latest
     restart: always
     environment:
-      PMA_HOST: db-ebb4hdh4lnyztgyhyjgrgvqi-173759283758
+      PMA_HOST: db
       PMA_PORT: 3306
       PMA_USER: ${DB_USERNAME}
       PMA_PASSWORD: ${DB_PASSWORD}
       UPLOAD_LIMIT: 100M
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.phpmyadmin.rule=Host(`db.${DOMAIN:-pixelmasters.io}`)"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`db.${DOMAIN}`)"
       - "traefik.http.routers.phpmyadmin.entrypoints=https"
       - "traefik.http.routers.phpmyadmin.tls=true"
       - "traefik.http.routers.phpmyadmin.tls.certresolver=letsencrypt"
       - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
     networks:
       - coolify
-      - app_network
+      - app_internal
 
   # ── RedisInsight — Redis Web UI ────────────────────────────────────────────
   redisinsight:
@@ -35,14 +35,14 @@ services:
       - redisinsight_data:/data
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.redisinsight.rule=Host(`redis.${DOMAIN:-pixelmasters.io}`)"
+      - "traefik.http.routers.redisinsight.rule=Host(`redis-ui.${DOMAIN}`)"
       - "traefik.http.routers.redisinsight.entrypoints=https"
       - "traefik.http.routers.redisinsight.tls=true"
       - "traefik.http.routers.redisinsight.tls.certresolver=letsencrypt"
       - "traefik.http.services.redisinsight.loadbalancer.server.port=5540"
     networks:
       - coolify
-      - app_network
+      - app_internal
 
   # ── Tabix — ClickHouse Web UI ──────────────────────────────────────────────
   tabix:
@@ -50,21 +50,69 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.tabix.rule=Host(`ch.${DOMAIN:-pixelmasters.io}`)"
+      - "traefik.http.routers.tabix.rule=Host(`ch.${DOMAIN}`)"
       - "traefik.http.routers.tabix.entrypoints=https"
       - "traefik.http.routers.tabix.tls=true"
       - "traefik.http.routers.tabix.tls.certresolver=letsencrypt"
       - "traefik.http.services.tabix.loadbalancer.server.port=80"
     networks:
       - coolify
-      - app_network
+      - app_internal
+
+  # ── Metabase — Business Analytics Dashboard ────────────────────────────────
+  metabase:
+    image: metabase/metabase:latest
+    restart: always
+    environment:
+      MB_DB_TYPE: mysql
+      MB_DB_HOST: db
+      MB_DB_PORT: 3306
+      MB_DB_DBNAME: ${METABASE_DB_NAME:-metabase}
+      MB_DB_USER: ${DB_USERNAME}
+      MB_DB_PASS: ${DB_PASSWORD}
+      JAVA_TIMEZONE: Asia/Dhaka
+    volumes:
+      - metabase_data:/metabase-data
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.metabase.rule=Host(`analytics.${DOMAIN}`)"
+      - "traefik.http.routers.metabase.entrypoints=https"
+      - "traefik.http.routers.metabase.tls=true"
+      - "traefik.http.routers.metabase.tls.certresolver=letsencrypt"
+      - "traefik.http.services.metabase.loadbalancer.server.port=3000"
+    networks:
+      - coolify
+      - app_internal
+
+  # ── Kafka UI — Kafka Topics & Consumer Groups ──────────────────────────────
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    restart: always
+    environment:
+      KAFKA_CLUSTERS_0_NAME: "PixelMasters Kafka"
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka:9092"
+      SERVER_SERVLET_CONTEXT_PATH: "/"
+      AUTH_TYPE: "LOGIN_FORM"
+      SPRING_SECURITY_USER_NAME: ${KAFKA_UI_USER:-admin}
+      SPRING_SECURITY_USER_PASSWORD: ${KAFKA_UI_PASSWORD:-secret123}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kafkaui.rule=Host(`kafka.${DOMAIN}`)"
+      - "traefik.http.routers.kafkaui.entrypoints=https"
+      - "traefik.http.routers.kafkaui.tls=true"
+      - "traefik.http.routers.kafkaui.tls.certresolver=letsencrypt"
+      - "traefik.http.services.kafkaui.loadbalancer.server.port=8080"
+    networks:
+      - coolify
+      - app_internal
 
 networks:
   coolify:
     external: true
-  app_network:
+  app_internal:
     external: true
     name: ebb4hdh4lnyztgyhyjgrgvqi_coolify_internal
 
 volumes:
   redisinsight_data:
+  metabase_data:
