@@ -37,7 +37,11 @@ return new class extends Migration
             }
             
             // Sync 2FA defaults (some versions have YES null, tenant has NO null)
-            $table->boolean('two_factor_enabled')->default(0)->change();
+            if (Schema::connection('central')->hasColumn('users', 'two_factor_enabled')) {
+                $table->boolean('two_factor_enabled')->default(0)->change();
+            } else {
+                $table->boolean('two_factor_enabled')->default(0)->after('branch_id');
+            }
         });
     }
 
