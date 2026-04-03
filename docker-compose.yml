@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # ── 1. Laravel PHP-FPM Application ──────────────────────────────────────────
+  # ── 1. Laravel Inertia + PHP-FPM ───────────────────────────────────────────
   app:
     build:
       context: .
@@ -20,10 +20,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      kafka:
-        condition: service_started
 
-  # ── 2. Nginx (Laravel Web Server) ───────────────────────────────────────────
+  # ── 2. Nginx Public Proxy ──────────────────────────────────────────────────
   web:
     image: nginx:alpine
     container_name: coolify_web
@@ -36,7 +34,7 @@ services:
     depends_on:
       - app
 
-  # ── 3. Database (MySQL 8) ───────────────────────────────────────────────────
+  # ── 3. Database (MySQL) ────────────────────────────────────────────────────
   db:
     image: mysql:8.0
     container_name: coolify_db
@@ -55,14 +53,14 @@ services:
     networks:
       - coolify_network
 
-  # ── 4. Cache & Queues (Redis) ───────────────────────────────────────────────
+  # ── 4. Cache & Queues (Redis) ──────────────────────────────────────────────
   redis:
     image: redis:alpine
     container_name: coolify_redis
     restart: always
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-secret}
     volumes:
-      - coolify_redis_data:/data
+      - ./redis_data:/data
     networks:
       - coolify_network
 
@@ -83,7 +81,7 @@ services:
     networks:
       - coolify_network
 
-  # ── 6. Message Broker (Kafka & Zookeeper Stack) ────────────────────────────
+  # ── 6. Message Broker (Kafka) ──────────────────────────────────────────────
   zookeeper:
     image: bitnami/zookeeper:latest
     container_name: coolify_zookeeper
@@ -105,7 +103,7 @@ services:
     depends_on:
       - zookeeper
 
-  # ── 7. Worker (Background Jobs) ─────────────────────────────────────────────
+  # ── 7. Worker (Laravel Queues) ─────────────────────────────────────────────
   worker:
     build:
       context: .
@@ -128,5 +126,4 @@ networks:
 
 volumes:
   coolify_db_data:
-  coolify_redis_data:
   coolify_clickhouse_data:
