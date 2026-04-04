@@ -23,7 +23,6 @@ services:
       - CLICKHOUSE_HOST=clickhouse
       - KAFKA_BROKERS=kafka:9092
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - app_storage:/var/www/storage
       - app_bootstrap_cache:/var/www/bootstrap/cache
       - app_public_build:/var/www/public/build
@@ -42,10 +41,8 @@ services:
     restart: always
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`${SERVICE_FQDN_APP:-localhost}`) || Host(`109.199.98.144`)"
-      - "traefik.http.routers.web.entrypoints=web"
+      - "traefik.http.routers.web.rule=Host(`${SERVICE_FQDN_APP}`)"
       - "traefik.http.services.web.loadbalancer.server.port=80"
-      - "traefik.docker.network=traefik-net"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
       interval: 15s
@@ -57,10 +54,11 @@ services:
         soft: 65536
         hard: 65536
     volumes:
+      - ./public:/var/www/public
       - app_public_build:/var/www/public/build:ro
     networks:
       - coolify_internal
-      - traefik-net
+      - coolify
     depends_on:
       - app
 
@@ -149,8 +147,6 @@ services:
       - SESSION_DRIVER=redis
       - CLICKHOUSE_HOST=clickhouse
       - KAFKA_BROKERS=kafka:9092
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - db
       - redis
@@ -161,7 +157,7 @@ services:
 networks:
   coolify_internal:
     driver: bridge
-  traefik-net:
+  coolify:
     external: true
 
 volumes:

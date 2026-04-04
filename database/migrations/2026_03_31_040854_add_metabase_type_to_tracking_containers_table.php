@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('ec_tracking_containers', function (Blueprint $table) {
-            $table->enum('metabase_type', ['local', 'cloud'])->default('local')->after('is_active');
-        });
+        if (!Schema::hasColumn('ec_tracking_containers', 'metabase_type')) {
+            Schema::table('ec_tracking_containers', function (Blueprint $table) {
+                $table->enum('metabase_type', ['local', 'cloud'])->default('local')->after('is_active');
+            });
+        }
     }
 
     /**

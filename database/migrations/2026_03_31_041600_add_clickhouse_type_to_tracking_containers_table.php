@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('ec_tracking_containers', function (Blueprint $table) {
-            $table->enum('metabase_type', ['self_hosted', 'cloud'])->default('self_hosted')->after('container_id');
-            $table->enum('clickhouse_type', ['self_hosted', 'cloud'])->default('self_hosted')->after('metabase_type');
+            if (!Schema::hasColumn('ec_tracking_containers', 'metabase_type')) {
+                $table->enum('metabase_type', ['self_hosted', 'cloud'])->default('self_hosted')->after('container_id');
+            }
+            if (!Schema::hasColumn('ec_tracking_containers', 'clickhouse_type')) {
+                $table->enum('clickhouse_type', ['self_hosted', 'cloud'])->default('self_hosted')->after('metabase_type');
+            }
         });
     }
 

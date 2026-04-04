@@ -31,7 +31,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('tracking_container_id')
-                  ->references('id')->on('tracking_containers')
+                  ->references('id')->on('ec_tracking_containers')
                   ->nullOnDelete();
         });
     }

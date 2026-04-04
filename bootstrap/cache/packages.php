@@ -11,6 +11,13 @@
       0 => 'Barryvdh\\DomPDF\\ServiceProvider',
     ),
   ),
+  'glushkovds/clickhouse-builder' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Tinderbox\\ClickhouseBuilder\\Integrations\\Laravel\\ClickhouseServiceProvider',
+    ),
+  ),
   'inertiajs/inertia-laravel' => 
   array (
     'providers' => 
