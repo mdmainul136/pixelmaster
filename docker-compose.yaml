@@ -56,7 +56,6 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - ./public:/var/www/public
       - app_public_build:/var/www/public/build:ro
     networks:
       - coolify_internal
