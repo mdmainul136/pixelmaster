@@ -39,9 +39,11 @@ services:
       context: .
       dockerfile: docker/nginx/Dockerfile
     restart: always
+    ports:
+      - "80:80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.web.rule=Host(`${SERVICE_FQDN_APP}`)"
+      - "traefik.http.routers.web.rule=Host(`${SERVICE_FQDN_APP:-localhost}`)"
       - "traefik.http.services.web.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
@@ -58,7 +60,6 @@ services:
       - app_public_build:/var/www/public/build:ro
     networks:
       - coolify_internal
-      - coolify
     depends_on:
       - app
 
@@ -157,8 +158,6 @@ services:
 networks:
   coolify_internal:
     driver: bridge
-  coolify:
-    external: true
 
 volumes:
   coolify_db_data:
