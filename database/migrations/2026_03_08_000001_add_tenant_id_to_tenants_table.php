@@ -20,7 +20,7 @@ return new class extends Migration
                 if (!Schema::connection('central')->hasColumn('tenants', 'tenant_id')) {
                     // Add tenant_id after id to keep it clean
                     $table->string('tenant_id')->nullable()->after('id');
-                    $table->index('tenant_id');
+                    $table->index('tenant_id', 'idx_tenant_id_unique_alias');
                 }
             });
 
