@@ -43,6 +43,10 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.web.rule=Host(`${SERVICE_FQDN_APP}`)"
       - "traefik.http.services.web.loadbalancer.server.port=80"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
       - ./public:/var/www/public
       - app_public_build:/var/www/public/build:ro
