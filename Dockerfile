@@ -10,31 +10,13 @@ RUN npm run build
 # ── Stage 1: PHP Base ─────────────────────────────────────────────────────────
 FROM php:8.3-fpm-alpine AS base
 
-# 1a. Install system libraries & tools
-RUN apk add --no-cache \
-    libpng-dev libzip-dev oniguruma-dev libxml2-dev icu-dev \
-    git unzip zip curl bash \
-    libwebp-dev libjpeg-turbo-dev freetype-dev \
-    librdkafka-dev build-base autoconf gmp-dev \
-    linux-headers
+# 1a. Install system base tools
+RUN apk add --no-cache git unzip zip curl bash
 
-# 1b. Configure & install PHP extensions
-RUN export CFLAGS="-I/usr/include/freetype2" \
-    && export CPPFLAGS="-I/usr/include/freetype2" \
-    && docker-php-ext-configure gd \
-        --with-freetype \
-        --with-jpeg \
-        --with-webp \
-    && docker-php-ext-install -j$(nproc) \
-        pdo_mysql mbstring exif pcntl bcmath gd \
-        zip intl opcache sockets gmp
-
-# 1c. Install PECL extensions (rdkafka + redis)
-RUN pecl install rdkafka redis \
-    && docker-php-ext-enable rdkafka redis
-
-# 1d. Clean up build deps to keep image smaller
-RUN apk del build-base autoconf linux-headers
+# 1b. Install PHP extensions (using optimized installer to avoid OOM crashes on the server)
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN chmod +x /usr/local/bin/install-php-extensions && \
+    install-php-extensions pdo_mysql exif pcntl bcmath gd zip intl opcache sockets gmp rdkafka redis
 
 WORKDIR /var/www
 ENV APP_ENV=production
