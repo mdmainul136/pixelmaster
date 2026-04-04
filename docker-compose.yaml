@@ -15,6 +15,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-secret}
       - REDIS_CLIENT=predis
       - QUEUE_CONNECTION=redis
       - CACHE_STORE=redis
@@ -129,6 +130,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-secret}
       - REDIS_CLIENT=predis
       - QUEUE_CONNECTION=redis
       - CACHE_STORE=redis
