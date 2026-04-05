@@ -17,7 +17,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - traefik-net
+      - pixelmaster-pro-net
 
   app:
     build:
@@ -48,7 +48,7 @@ services:
       - app_bootstrap_cache:/var/www/bootstrap/cache
       - app_public_build:/var/www/public/build
     networks:
-      - coolify_internal
+      - pixelmaster-pro-net
     depends_on:
       db:
         condition: service_started
@@ -65,7 +65,7 @@ services:
       - "traefik.http.routers.web.rule=Host(`${SERVICE_FQDN_APP:-localhost}`) || Host(`109.199.98.144`)"
       - "traefik.http.routers.web.entrypoints=web"
       - "traefik.http.services.web.loadbalancer.server.port=80"
-      - "traefik.docker.network=traefik-net"
+      - "traefik.docker.network=pixelmaster-pro-net"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
       interval: 15s
@@ -79,8 +79,8 @@ services:
     volumes:
       - app_public_build:/var/www/public/build:ro
     networks:
-      - coolify_internal
-      - traefik-net
+      - pixelmaster-pro-net
+      - pixelmaster-pro-net
     depends_on:
       - app
 
@@ -101,7 +101,7 @@ services:
       retries: 20
       start_period: 30s
     networks:
-      - coolify_internal
+      - pixelmaster-pro-net
 
   redis:
     image: redis:alpine
@@ -110,7 +110,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - coolify_internal
+      - pixelmaster-pro-net
 
   clickhouse:
     image: clickhouse/clickhouse-server:latest
@@ -124,7 +124,7 @@ services:
         soft: 262144
         hard: 262144
     networks:
-      - coolify_internal
+      - pixelmaster-pro-net
 
   kafka:
     image: apache/kafka:3.9.0
@@ -143,7 +143,7 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
-      - coolify_internal
+      - pixelmaster-pro-net
 
   worker:
     build:
@@ -176,14 +176,12 @@ services:
       - redis
       - kafka
     networks:
-      - coolify_internal
+      - pixelmaster-pro-net
 
 networks:
-  coolify_internal:
+  pixelmaster-pro-net:
     driver: bridge
-  traefik-net:
-    driver: bridge
-    name: traefik-net
+    name: pixelmaster-pro-net
 
 volumes:
   coolify_db_data:
