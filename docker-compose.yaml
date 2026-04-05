@@ -1,4 +1,24 @@
 services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: always
+    command:
+      - "--api.insecure=true"
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - traefik-net
+
   app:
     build:
       context: .
@@ -162,7 +182,8 @@ networks:
   coolify_internal:
     driver: bridge
   traefik-net:
-    external: true
+    driver: bridge
+    name: traefik-net
 
 volumes:
   coolify_db_data:
