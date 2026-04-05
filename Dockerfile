@@ -37,10 +37,8 @@ COPY --from=frontend /build/public/build /var/www/public/build
 # 1. Generate autoload.php first (no scripts — avoids artisan needing autoload.php)
 RUN composer dump-autoload --no-dev --no-scripts
 
-# 2. Now artisan works — generate key & discover packages
-RUN cp .env.example .env \
-    && php artisan key:generate --force \
-    && php artisan package:discover --ansi
+# 2. Now artisan works — discover packages
+RUN php artisan package:discover --ansi
 
 # 3. Re-optimize autoload
 RUN composer dump-autoload --optimize --no-dev --no-scripts
@@ -50,9 +48,12 @@ FROM base AS runner
 
 RUN addgroup -g 1000 -S app && adduser -u 1000 -S app -G app
 COPY --from=build --chown=app:app /var/www /var/www
-RUN chown -R app:app /var/www/storage /var/www/bootstrap/cache \
+# Copy entrypoint
+COPY --chown=app:app docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+    && chown -R app:app /var/www/storage /var/www/bootstrap/cache \
     && chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
 USER app
 EXPOSE 9000
-CMD ["php-fpm"]
+CMD ["/usr/local/bin/entrypoint.sh"]

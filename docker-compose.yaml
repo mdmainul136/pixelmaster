@@ -46,7 +46,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - app_storage:/var/www/storage
       - app_bootstrap_cache:/var/www/bootstrap/cache
-      - app_public_build:/var/www/public/build
     networks:
       - pixelmaster-pro-net
     depends_on:
@@ -77,9 +76,8 @@ services:
         soft: 65536
         hard: 65536
     volumes:
-      - app_public_build:/var/www/public/build:ro
+      - app_storage:/var/www/storage:ro
     networks:
-      - pixelmaster-pro-net
       - pixelmaster-pro-net
     depends_on:
       - app
@@ -187,7 +185,5 @@ volumes:
   coolify_db_data:
   coolify_clickhouse_data:
   redis_data:
-  app_public_build:
-  kafka_data:
   app_storage:
   app_bootstrap_cache:
